@@ -3,6 +3,7 @@
 namespace Bouncer\WooCommerce\WhatsApp\Admin;
 
 use Bouncer\WooCommerce\WhatsApp\Service\ApiClient;
+use Bouncer\WooCommerce\WhatsApp\Service\LoggerInterface;
 use Bouncer\WooCommerce\WhatsApp\Service\MetaKeyDiscovery;
 use Bouncer\WooCommerce\WhatsApp\Service\PlaceholderResolver;
 use Bouncer\WooCommerce\WhatsApp\Settings\Settings;
@@ -15,13 +16,15 @@ class GeneralSettingsPage {
     private ApiClient $api_client;
     private PlaceholderResolver $resolver;
     private MetaKeyDiscovery $meta_discovery;
+    private LoggerInterface $logger;
     private array $state = [];
 
-    public function __construct( Settings $settings, ApiClient $api_client, PlaceholderResolver $resolver, MetaKeyDiscovery $meta_discovery ) {
+    public function __construct( Settings $settings, ApiClient $api_client, PlaceholderResolver $resolver, MetaKeyDiscovery $meta_discovery, LoggerInterface $logger ) {
         $this->settings       = $settings;
         $this->api_client     = $api_client;
         $this->resolver       = $resolver;
         $this->meta_discovery = $meta_discovery;
+        $this->logger         = $logger;
     }
 
     public function register(): void {
@@ -487,10 +490,17 @@ class GeneralSettingsPage {
 
             $response = $this->api_client->send_cloud_template( $phone, $template_name, $variables, $instance, $template_language );
 
+            // Log test message
+            $status        = $response['success'] ? 'success' : 'failed';
+            $response_code = (int) ( $response['response_code'] ?? 0 );
+            $response_body = (string) ( $response['response_body'] ?? '' );
+            $log_message   = sprintf( '[TEST] Template: %s', $template_name );
+            $this->logger->record( $order_id, $phone, $log_message, $status, $response_code, $response_body );
+
             $this->state['test_result'] = [
                 'success' => $response['success'],
-                'code'    => $response['response_code'] ?? 0,
-                'body'    => $response['response_body'] ?? '',
+                'code'    => $response_code,
+                'body'    => $response_body,
             ];
         } else {
             // Bouncer - send text message
@@ -515,10 +525,17 @@ class GeneralSettingsPage {
 
             $response = $this->api_client->send_text( $phone, wp_strip_all_tags( $message ), $instance );
 
+            // Log test message
+            $status        = $response['success'] ? 'success' : 'failed';
+            $response_code = (int) ( $response['response_code'] ?? 0 );
+            $response_body = (string) ( $response['response_body'] ?? '' );
+            $log_message   = '[TEST] ' . mb_strimwidth( $message, 0, 100, '...' );
+            $this->logger->record( 0, $phone, $log_message, $status, $response_code, $response_body );
+
             $this->state['test_result'] = [
                 'success' => $response['success'],
-                'code'    => $response['response_code'] ?? 0,
-                'body'    => $response['response_body'] ?? '',
+                'code'    => $response_code,
+                'body'    => $response_body,
             ];
         }
     }

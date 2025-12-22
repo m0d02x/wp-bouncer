@@ -19,6 +19,20 @@ class LogsPage {
     public function register(): void {
         add_action( 'admin_menu', [ $this, 'add_menu' ] );
         add_action( 'admin_post_wc_bouncer_clear_logs', [ $this, 'handle_clear_logs' ] );
+        add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+    }
+
+    public function enqueue_assets( string $hook ): void {
+        if ( 'bouncer-whatsapp_page_wc-bouncer-whatsapp-logs' !== $hook ) {
+            return;
+        }
+
+        wp_enqueue_style(
+            'wc-bouncer-whatsapp-admin',
+            WC_BOUNCER_WHATSAPP_PLUGIN_URL . 'assets/css/admin.css',
+            [],
+            WC_BOUNCER_WHATSAPP_VERSION
+        );
     }
 
     public function add_menu(): void {
