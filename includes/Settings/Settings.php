@@ -23,8 +23,14 @@ class Settings {
     }
 
     public function update( array $values ): void {
-        $sanitized = $this->sanitize( wp_unslash( $values ) );
-        update_option( self::OPTION_NAME, $sanitized );
+        // Merge with current values first, so partial updates don't wipe existing data
+        $current = $this->get_all();
+        $merged = array_merge( $current, $values );
+        $sanitized = $this->sanitize( wp_unslash( $merged ) );
+        error_log( '[Bouncer Settings] Saving: ' . wp_json_encode( array_keys( $sanitized ) ) );
+        error_log( '[Bouncer Settings] API key present: ' . ( ! empty( $sanitized['api_key'] ) ? 'yes (' . strlen( $sanitized['api_key'] ) . ' chars)' : 'no' ) );
+        $result = update_option( self::OPTION_NAME, $sanitized );
+        error_log( '[Bouncer Settings] update_option result: ' . ( $result ? 'true' : 'false' ) );
     }
 
     public function defaults(): array {
@@ -32,6 +38,7 @@ class Settings {
             'api_key'               => '',
             'instance_id'           => '',
             'instance_type'         => '',
+            'integration_id'        => '',
             'message_template'      => __( 'Hello {name}, your order {order_number} is now {status}. Total: {amount}.', 'wc-bouncer-whatsapp' ),
             'trigger_statuses'      => [],
             'log_retention'         => 7,
@@ -52,6 +59,7 @@ class Settings {
         $data['api_key']          = sanitize_text_field( $data['api_key'] );
         $data['instance_id']      = sanitize_text_field( $data['instance_id'] );
         $data['instance_type']    = sanitize_key( $data['instance_type'] ?? '' );
+        $data['integration_id']   = sanitize_text_field( $data['integration_id'] ?? '' );
         $data['message_template'] = wp_kses_post( $data['message_template'] );
         $data['log_retention']    = max( 1, absint( $data['log_retention'] ) );
 

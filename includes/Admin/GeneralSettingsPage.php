@@ -404,6 +404,9 @@ class GeneralSettingsPage {
     private function handle_save_general(): void {
         check_admin_referer( 'wc_bouncer_save_general' );
 
+        error_log( '[Bouncer] handle_save_general POST keys: ' . implode( ', ', array_keys( $_POST ) ) );
+        error_log( '[Bouncer] handle_save_general api_key in POST: ' . ( isset( $_POST['api_key'] ) ? 'yes (' . strlen( $_POST['api_key'] ) . ' chars)' : 'NO' ) );
+
         $api_key       = sanitize_text_field( wp_unslash( $_POST['api_key'] ?? '' ) );
         $instance_id   = sanitize_text_field( wp_unslash( $_POST['instance_id'] ?? '' ) );
         $instance_type = sanitize_key( wp_unslash( $_POST['instance_type'] ?? '' ) );

@@ -66,6 +66,10 @@ $has_instance = ! empty( $settings['instance_id'] );
             <span class="dashicons dashicons-admin-tools"></span>
             <?php esc_html_e( 'Tools', 'wc-bouncer-whatsapp' ); ?>
         </a>
+        <a href="#webhooks" class="bouncer-tab <?php echo 'webhooks' === $active_tab ? 'active' : ''; ?>" data-tab="webhooks">
+            <span class="dashicons dashicons-rest-api"></span>
+            <?php esc_html_e( 'Webhooks', 'wc-bouncer-whatsapp' ); ?>
+        </a>
     </div>
 
     <!-- Connection Tab -->
@@ -770,10 +774,165 @@ $has_instance = ! empty( $settings['instance_id'] );
             </div>
         <?php endif; ?>
     </div>
+
+    <!-- Webhooks Tab -->
+    <div id="webhooks" class="bouncer-tab-content <?php echo 'webhooks' === $active_tab ? 'active' : ''; ?>">
+        <div class="bouncer-card" style="background: #e7f5e7; border-left: 4px solid #46b450;">
+            <div class="bouncer-card-header">
+                <h3 class="bouncer-card-title">
+                    <span class="dashicons dashicons-update"></span>
+                    <?php esc_html_e( 'Quick Setup', 'wc-bouncer-whatsapp' ); ?>
+                </h3>
+            </div>
+            <div class="bouncer-card-body">
+                <p style="color: #3c434a; margin: 0 0 16px 0;">
+                    <?php esc_html_e( 'Automatically configure WooCommerce webhooks to send order events to Bouncer.', 'wc-bouncer-whatsapp' ); ?>
+                </p>
+                
+                <div id="bouncer-connect-result"></div>
+                
+                <button type="button" id="bouncer-auto-configure" class="bouncer-btn bouncer-btn-primary bouncer-btn-lg">
+                    <span class="dashicons dashicons-update"></span>
+                    <?php esc_html_e( 'Auto-Configure Webhooks', 'wc-bouncer-whatsapp' ); ?>
+                </button>
+                
+                <p class="description" style="margin-top: 12px; color: #6b7280;">
+                    <?php esc_html_e( 'This will use your API key to automatically set up webhook URL, secret, and create WooCommerce webhooks.', 'wc-bouncer-whatsapp' ); ?>
+                </p>
+            </div>
+        </div>
+
+        <div class="bouncer-card" style="margin-top: 16px;">
+            <div class="bouncer-card-header">
+                <h3 class="bouncer-card-title">
+                    <span class="dashicons dashicons-list-view"></span>
+                    <?php esc_html_e( 'Webhook Events', 'wc-bouncer-whatsapp' ); ?>
+                </h3>
+            </div>
+            <div class="bouncer-card-body">
+                <p style="color: #6b7280; margin: 0 0 16px 0;">
+                    <?php esc_html_e( 'Select which events should trigger Bouncer workflows:', 'wc-bouncer-whatsapp' ); ?>
+                </p>
+                
+                <div class="bouncer-checkbox-group">
+                    <label class="bouncer-checkbox-item">
+                        <input type="checkbox" name="webhook_events[]" value="order.created" checked>
+                        <span class="dashicons dashicons-cart"></span>
+                        <?php esc_html_e( 'Order Created', 'wc-bouncer-whatsapp' ); ?>
+                    </label>
+                    <label class="bouncer-checkbox-item">
+                        <input type="checkbox" name="webhook_events[]" value="order.updated" checked>
+                        <span class="dashicons dashicons-edit"></span>
+                        <?php esc_html_e( 'Order Updated', 'wc-bouncer-whatsapp' ); ?>
+                    </label>
+                    <label class="bouncer-checkbox-item">
+                        <input type="checkbox" name="webhook_events[]" value="order.deleted">
+                        <span class="dashicons dashicons-trash"></span>
+                        <?php esc_html_e( 'Order Deleted', 'wc-bouncer-whatsapp' ); ?>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="bouncer-card" style="margin-top: 16px;">
+            <div class="bouncer-card-header">
+                <h3 class="bouncer-card-title">
+                    <span class="dashicons dashicons-admin-links"></span>
+                    <?php esc_html_e( 'Active Webhooks', 'wc-bouncer-whatsapp' ); ?>
+                </h3>
+            </div>
+            <div class="bouncer-card-body">
+                <div id="bouncer-webhooks-list">
+                    <?php
+                    $webhooks = function_exists( 'wc_get_webhooks' ) ? wc_get_webhooks( [ 'status' => 'all', 'limit' => -1 ] ) : [];
+                    $bouncer_webhooks = array_filter( $webhooks, function( $w ) {
+                        return strpos( $w->get_delivery_url(), 'bouncer' ) !== false || strpos( $w->get_name(), 'Bouncer' ) !== false;
+                    } );
+                    
+                    if ( empty( $bouncer_webhooks ) ) : ?>
+                        <p style="color: #6b7280; margin: 0;">
+                            <?php esc_html_e( 'No Bouncer webhooks configured yet. Click "Auto-Configure Webhooks" above to get started.', 'wc-bouncer-whatsapp' ); ?>
+                        </p>
+                    <?php else : ?>
+                        <table class="bouncer-table">
+                            <thead>
+                                <tr>
+                                    <th><?php esc_html_e( 'Name', 'wc-bouncer-whatsapp' ); ?></th>
+                                    <th><?php esc_html_e( 'Event', 'wc-bouncer-whatsapp' ); ?></th>
+                                    <th><?php esc_html_e( 'Status', 'wc-bouncer-whatsapp' ); ?></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ( $bouncer_webhooks as $webhook ) : ?>
+                                    <tr>
+                                        <td><?php echo esc_html( $webhook->get_name() ); ?></td>
+                                        <td><code><?php echo esc_html( $webhook->get_topic() ); ?></code></td>
+                                        <td>
+                                            <?php if ( $webhook->get_status() === 'active' ) : ?>
+                                                <span class="bouncer-status-badge connected" style="font-size: 12px;">
+                                                    <?php esc_html_e( 'Active', 'wc-bouncer-whatsapp' ); ?>
+                                                </span>
+                                            <?php else : ?>
+                                                <span class="bouncer-status-badge disconnected" style="font-size: 12px;">
+                                                    <?php echo esc_html( $webhook->get_status() ); ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
 (function($) {
+    // Webhook auto-configure
+    $('#bouncer-auto-configure').on('click', function() {
+        var $btn = $(this);
+        var $result = $('#bouncer-connect-result');
+        
+        $btn.prop('disabled', true).html('<span class="dashicons dashicons-update spinning"></span> <?php esc_html_e( 'Connecting...', 'wc-bouncer-whatsapp' ); ?>');
+        $result.html('');
+        
+        var enabledEvents = [];
+        $('input[name="webhook_events[]"]:checked').each(function() {
+            enabledEvents.push($(this).val());
+        });
+        
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'wc_bouncer_connect',
+                nonce: '<?php echo wp_create_nonce( 'wc_bouncer_connect' ); ?>',
+                enabled_events: enabledEvents
+            },
+            success: function(response) {
+                if (response.success) {
+                    $result.html('<div class="bouncer-alert bouncer-alert-success"><span class="dashicons dashicons-yes-alt"></span><div class="bouncer-alert-content">' + response.data.message + '</div></div>');
+                    setTimeout(function() { location.reload(); }, 2000);
+                } else {
+                    $result.html('<div class="bouncer-alert bouncer-alert-error"><span class="dashicons dashicons-dismiss"></span><div class="bouncer-alert-content">' + response.data.message + '</div></div>');
+                }
+            },
+            error: function(xhr, status, error) {
+                var errorMsg = 'Connection failed: ' + status;
+                if (xhr.responseText) {
+                    errorMsg += ' - ' + xhr.responseText.substring(0, 200);
+                }
+                $result.html('<div class="bouncer-alert bouncer-alert-error"><span class="dashicons dashicons-dismiss"></span><div class="bouncer-alert-content">' + errorMsg + '</div></div>');
+            },
+            complete: function() {
+                $btn.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> <?php esc_html_e( 'Auto-Configure Webhooks', 'wc-bouncer-whatsapp' ); ?>');
+            }
+        });
+    });
+
     // Tab switching
     $('.bouncer-tab').on('click', function(e) {
         e.preventDefault();
