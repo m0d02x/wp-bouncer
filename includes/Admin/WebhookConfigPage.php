@@ -309,6 +309,9 @@ class WebhookConfigPage {
             $webhook->set_delivery_url( $url );
             $webhook->set_secret( $secret );
             $webhook->set_api_version( 3 );
+            // CRITICAL: Set user_id so WooCommerce can fetch order data when delivering webhooks
+            // Without this, webhook delivery returns 401 "woocommerce_rest_cannot_view" error
+            $webhook->set_user_id( get_current_user_id() );
 
             if ( $webhook->save() ) {
                 $created[] = $webhook->get_id();

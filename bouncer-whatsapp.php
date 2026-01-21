@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Bouncer WhatsApp
  * Plugin URI: https://bouncer.my
  * Description: Automates WhatsApp notifications for WooCommerce orders using the Bouncer API.
- * Version: 0.1.3
+ * Version: 0.1.4
  * Author: Bouncer
  * Author URI: https://bouncer.my
  * Text Domain: wc-bouncer-whatsapp
