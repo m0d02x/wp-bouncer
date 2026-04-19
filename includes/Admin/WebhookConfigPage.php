@@ -13,21 +13,9 @@ class WebhookConfigPage {
     }
 
     public function register(): void {
-        add_action( 'admin_menu', [ $this, 'add_menu' ], 20 );
         add_action( 'admin_init', [ $this, 'register_settings' ] );
         add_action( 'wp_ajax_wc_bouncer_connect', [ $this, 'ajax_connect_to_bouncer' ] );
         add_action( 'wp_ajax_wc_bouncer_disconnect', [ $this, 'ajax_disconnect_from_bouncer' ] );
-    }
-
-    public function add_menu(): void {
-        add_submenu_page(
-            'bouncer-whatsapp',
-            __( 'Webhook Configuration', 'wc-bouncer-whatsapp' ),
-            __( 'Webhook Config', 'wc-bouncer-whatsapp' ),
-            'manage_woocommerce',
-            'bouncer-webhook-config',
-            [ $this, 'render_page' ]
-        );
     }
 
     public function register_settings(): void {
@@ -495,7 +483,7 @@ class WebhookConfigPage {
 
         if ( ! empty( $data['connectionVerified'] ) && ! empty( $data['storeName'] ) ) {
             $message .= ' ' . sprintf( __( 'Store verified: %s', 'wc-bouncer-whatsapp' ), $data['storeName'] );
-        } elseif ( isset( $data['connectionVerified'] ) && ! $data['connectionVerified'] ) {
+        } elseif ( isset( $data['connectionVerified'] ) && ! $data['connectionVerified'] && ! $this->is_local_site() ) {
             $message .= ' ' . __( 'Warning: Bouncer could not reach your store API. Ensure your site is publicly accessible.', 'wc-bouncer-whatsapp' );
         }
 
@@ -629,5 +617,10 @@ class WebhookConfigPage {
 			'consumer_key'    => $consumer_key,
 			'consumer_secret' => $consumer_secret,
 		];
+	}
+
+	private function is_local_site(): bool {
+		$url = home_url();
+		return ( strpos( $url, '.local' ) !== false || strpos( $url, 'localhost' ) !== false || strpos( $url, '127.0.0.1' ) !== false );
 	}
 }

@@ -11,20 +11,8 @@ class ApiClient {
     public function __construct( Settings $settings, string $base_url = 'https://api.bouncer.my/api/v1' ) {
         $this->settings = $settings;
 
-        // Use localhost API for local development
-        // Check both HTTP_HOST and site_url() for AJAX requests where HTTP_HOST might differ
-        $is_local = false;
-        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            $site_url = get_site_url();
-            $is_local = (
-                ( isset( $_SERVER['HTTP_HOST'] ) && 'local.local' === $_SERVER['HTTP_HOST'] ) ||
-                strpos( $site_url, 'local.local' ) !== false ||
-                strpos( $site_url, '.local' ) !== false
-            );
-        }
-
-        if ( $is_local ) {
-            $base_url = 'http://localhost:3000/api/v1';
+        if ( defined( 'BOUNCER_API_URL' ) ) {
+            $base_url = BOUNCER_API_URL;
         }
 
         $this->base_url = rtrim( $base_url, '/' );
