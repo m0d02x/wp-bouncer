@@ -16,6 +16,7 @@ class WebhookConfigPage {
         add_action( 'admin_menu', [ $this, 'add_menu' ], 20 );
         add_action( 'admin_init', [ $this, 'register_settings' ] );
         add_action( 'wp_ajax_wc_bouncer_connect', [ $this, 'ajax_connect_to_bouncer' ] );
+        add_action( 'wp_ajax_wc_bouncer_disconnect', [ $this, 'ajax_disconnect_from_bouncer' ] );
     }
 
     public function add_menu(): void {
@@ -74,22 +75,41 @@ class WebhookConfigPage {
             <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
             <p><?php _e( 'Configure automatic webhooks for Bouncer workflow triggers', 'wc-bouncer-whatsapp' ); ?></p>
 
+            <?php
+            $connection_status = $this->settings->get( 'connection_status', '' );
+            $integration_id    = $this->settings->get( 'integration_id', '' );
+            $is_connected      = 'connected' === $connection_status && ! empty( $integration_id );
+            ?>
+
+            <?php if ( $is_connected ) : ?>
             <div class="card" style="max-width: 800px; margin-top: 20px; background: #e7f5e7; border-left: 4px solid #46b450;">
-                <h2>🚀 <?php _e( 'Quick Setup', 'wc-bouncer-whatsapp' ); ?></h2>
-                <p><?php _e( 'Automatically configure webhooks using your Bouncer API key.', 'wc-bouncer-whatsapp' ); ?></p>
-                
+                <h2><?php _e( 'Connected to Bouncer', 'wc-bouncer-whatsapp' ); ?> &#10003;</h2>
+                <p><?php printf( __( 'Integration ID: %s', 'wc-bouncer-whatsapp' ), '<code>' . esc_html( $integration_id ) . '</code>' ); ?></p>
                 <div id="bouncer-connect-result"></div>
-                
                 <p>
-                    <button type="button" id="bouncer-auto-configure" class="button button-primary button-hero">
-                        ⚡ <?php _e( 'Auto-Configure from Bouncer', 'wc-bouncer-whatsapp' ); ?>
+                    <button type="button" id="bouncer-auto-configure" class="button button-primary">
+                        <?php _e( 'Reconnect', 'wc-bouncer-whatsapp' ); ?>
+                    </button>
+                    <button type="button" id="bouncer-disconnect" class="button" style="color: #a00; margin-left: 8px;">
+                        <?php _e( 'Disconnect', 'wc-bouncer-whatsapp' ); ?>
                     </button>
                 </p>
-                
+            </div>
+            <?php else : ?>
+            <div class="card" style="max-width: 800px; margin-top: 20px; background: #f0f6fc; border-left: 4px solid #2271b1;">
+                <h2><?php _e( 'Connect to Bouncer', 'wc-bouncer-whatsapp' ); ?></h2>
+                <p><?php _e( 'Automatically configure webhooks using your Bouncer API key.', 'wc-bouncer-whatsapp' ); ?></p>
+                <div id="bouncer-connect-result"></div>
+                <p>
+                    <button type="button" id="bouncer-auto-configure" class="button button-primary button-hero">
+                        <?php _e( 'Connect to Bouncer', 'wc-bouncer-whatsapp' ); ?>
+                    </button>
+                </p>
                 <p class="description">
-                    <?php _e( 'This will use your API key to automatically set up the webhook URL, secret, and create WooCommerce webhooks.', 'wc-bouncer-whatsapp' ); ?>
+                    <?php _e( 'This will generate WooCommerce API keys, register your store with Bouncer, and create webhooks automatically.', 'wc-bouncer-whatsapp' ); ?>
                 </p>
             </div>
+            <?php endif; ?>
 
             <div class="card" style="max-width: 800px; margin-top: 20px;">
                 <h2><?php _e( 'Webhook Settings', 'wc-bouncer-whatsapp' ); ?></h2>
@@ -204,7 +224,7 @@ class WebhookConfigPage {
                 $('#bouncer-auto-configure').on('click', function() {
                     var $btn = $(this);
                     var $result = $('#bouncer-connect-result');
-                    
+                    $btn.data('label', $btn.text());
                     $btn.prop('disabled', true).text('<?php _e( 'Connecting...', 'wc-bouncer-whatsapp' ); ?>');
                     $result.html('');
                     
@@ -237,10 +257,39 @@ class WebhookConfigPage {
                         error: function() {
                             $result.html('<div class="notice notice-error"><p>✗ <?php _e( 'Connection failed. Please try again.', 'wc-bouncer-whatsapp' ); ?></p></div>');
                         },
-                        complete: function() {
-                            $btn.prop('disabled', false).html('⚡ <?php _e( 'Auto-Configure from Bouncer', 'wc-bouncer-whatsapp' ); ?>');
+                    complete: function() {
+                            $btn.prop('disabled', false).text($btn.data('label'));
                         }
                     });
+                });
+
+                $('#bouncer-disconnect').on('click', function() {
+                    if (!confirm('<?php echo esc_js( __( 'Disconnect from Bouncer? This will remove all webhooks.', 'wc-bouncer-whatsapp' ) ); ?>')) return;
+                    var $btn = $(this);
+                    var $result = $('#bouncer-connect-result');
+                    $btn.prop('disabled', true);
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'wc_bouncer_disconnect',
+                            nonce: '<?php echo wp_create_nonce( 'wc_bouncer_disconnect' ); ?>'
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                $result.html('<div class="notice notice-success"><p>' + response.data.message + '</p></div>');
+                                setTimeout(function() { location.reload(); }, 1500);
+                            } else {
+                                $result.html('<div class="notice notice-error"><p>' + response.data.message + '</p></div>');
+                            }
+                        },
+                        error: function() {
+                            $result.html('<div class="notice notice-error"><p><?php _e( 'Disconnect failed.', 'wc-bouncer-whatsapp' ); ?></p></div>');
+                        },
+                        complete: function() { $btn.prop('disabled', false); }
+                    });
+                });
+            });
                 });
             });
             </script>
@@ -249,9 +298,6 @@ class WebhookConfigPage {
     }
 
     private function configure_webhooks( string $url, string $secret, array $events ): array {
-        error_log( '[Bouncer] configure_webhooks called with url=' . $url . ', events=' . count( $events ) );
-        
-        // Ensure WooCommerce webhook functions are loaded (may not be during AJAX)
         // Ensure WooCommerce webhook functions are loaded (may not be during AJAX)
         if ( ! function_exists( 'wc_load_webhooks' ) ) {
             if ( defined( 'WC_ABSPATH' ) && file_exists( WC_ABSPATH . 'includes/wc-webhook-functions.php' ) ) {
@@ -293,12 +339,8 @@ class WebhookConfigPage {
             }
         }
 
-        // Create new webhooks
-        error_log( '[Bouncer] configure_webhooks: events=' . wp_json_encode( $events ) );
         foreach ( $events as $event ) {
-            error_log( '[Bouncer] Processing event: ' . $event );
             if ( ! isset( $event_mapping[ $event ] ) ) {
-                error_log( '[Bouncer] Event not in mapping, skipping: ' . $event );
                 continue;
             }
 
@@ -367,40 +409,31 @@ class WebhookConfigPage {
     }
 
     public function ajax_connect_to_bouncer(): void {
-        // Verify nonce
         if ( ! check_ajax_referer( 'wc_bouncer_connect', 'nonce', false ) ) {
             wp_send_json_error( [ 'message' => __( 'Security check failed.', 'wc-bouncer-whatsapp' ) ] );
         }
 
-        // Check permissions
         if ( ! current_user_can( 'manage_woocommerce' ) ) {
             wp_send_json_error( [ 'message' => __( 'Permission denied.', 'wc-bouncer-whatsapp' ) ] );
         }
 
-        // Get enabled events from request
         $enabled_events = isset( $_POST['enabled_events'] ) ? array_map( 'sanitize_text_field', $_POST['enabled_events'] ) : [];
+        $store_url      = home_url();
 
-        // Get store URL
-        $store_url = home_url();
-
-        // Get WooCommerce consumer credentials
         $consumer_key    = $this->settings->get( 'wc_consumer_key', '' );
         $consumer_secret = $this->settings->get( 'wc_consumer_secret', '' );
 
-        // If no consumer credentials stored, create them
         if ( empty( $consumer_key ) || empty( $consumer_secret ) ) {
             $api_keys = $this->create_wc_api_keys();
             if ( ! $api_keys ) {
-                wp_send_json_error( [ 'message' => __( 'Could not create WooCommerce API keys. Please create them manually in WooCommerce > Settings > Advanced > REST API.', 'wc-bouncer-whatsapp' ) ] );
+                wp_send_json_error( [ 'message' => __( 'Could not create WooCommerce API keys. Ensure WooCommerce is active.', 'wc-bouncer-whatsapp' ) ] );
             }
             $consumer_key    = $api_keys['consumer_key'];
             $consumer_secret = $api_keys['consumer_secret'];
         }
 
-        // Get instance ID from settings
         $instance_id = $this->settings->get( 'instance_id', '' );
 
-        // Call Bouncer API
         $api_client = new \Bouncer\WooCommerce\WhatsApp\Service\ApiClient( $this->settings );
         $result     = $api_client->connect_to_woocommerce(
             $store_url,
@@ -411,32 +444,33 @@ class WebhookConfigPage {
         );
 
         if ( ! $result['success'] ) {
-            $error_message = __( 'Failed to connect to Bouncer.', 'wc-bouncer-whatsapp' );
-            if ( ! empty( $result['data']['error'] ) ) {
-                $error_message .= ' ' . $result['data']['error'];
-            } elseif ( ! empty( $result['response_body'] ) ) {
-                $decoded = json_decode( $result['response_body'], true );
+            $code = (int) ( $result['response_code'] ?? 0 );
+
+            if ( 401 === $code ) {
+                $error_message = __( 'Invalid API key. Check your Bouncer API key in Settings.', 'wc-bouncer-whatsapp' );
+            } elseif ( 403 === $code ) {
+                $error_message = __( 'API key missing webhooks:manage permission. Edit your key in Bouncer Dashboard > Developer to add it.', 'wc-bouncer-whatsapp' );
+            } elseif ( $code >= 500 ) {
+                $error_message = __( 'Bouncer server error. Please try again in a few minutes.', 'wc-bouncer-whatsapp' );
+            } else {
+                $error_message = __( 'Failed to connect to Bouncer.', 'wc-bouncer-whatsapp' );
+                $decoded = json_decode( $result['response_body'] ?? '', true );
                 if ( isset( $decoded['message'] ) ) {
                     $error_message .= ' ' . $decoded['message'];
-                } else {
-                    $error_message .= ' Response: ' . substr( $result['response_body'], 0, 200 );
                 }
             }
-            // Add debug info
-            $debug_info = sprintf(
-                ' [Debug: code=%s, url=%s]',
-                $result['response_code'] ?? 'N/A',
-                $api_client->get_base_url()
-            );
-            wp_send_json_error( [ 'message' => $error_message . $debug_info ] );
+
+            $this->settings->update( [ 'connection_status' => 'failed' ] );
+            wp_send_json_error( [ 'message' => $error_message ] );
         }
 
         $data = $result['data'];
 
-        // Store integration ID in settings
-        $this->settings->update( [ 'integration_id' => $data['integrationId'] ?? '' ] );
+        $this->settings->update( [
+            'integration_id'    => $data['integrationId'] ?? '',
+            'connection_status' => 'connected',
+        ] );
 
-        // Update webhook config
         $config = [
             'webhook_url'    => $data['webhookUrl'] ?? '',
             'webhook_secret' => $data['webhookSecret'] ?? '',
@@ -444,7 +478,6 @@ class WebhookConfigPage {
         ];
         update_option( $this->option_name, $config );
 
-        // Create WooCommerce webhooks
         $webhook_result = $this->configure_webhooks(
             $config['webhook_url'],
             $config['webhook_secret'],
@@ -455,8 +488,19 @@ class WebhookConfigPage {
             wp_send_json_error( [ 'message' => __( 'Connected to Bouncer but failed to create WooCommerce webhooks: ', 'wc-bouncer-whatsapp' ) . $webhook_result['error'] ] );
         }
 
+        $message = sprintf(
+            __( 'Connected to Bouncer! Created %d webhook(s).', 'wc-bouncer-whatsapp' ),
+            count( $webhook_result['webhooks'] )
+        );
+
+        if ( ! empty( $data['connectionVerified'] ) && ! empty( $data['storeName'] ) ) {
+            $message .= ' ' . sprintf( __( 'Store verified: %s', 'wc-bouncer-whatsapp' ), $data['storeName'] );
+        } elseif ( isset( $data['connectionVerified'] ) && ! $data['connectionVerified'] ) {
+            $message .= ' ' . __( 'Warning: Bouncer could not reach your store API. Ensure your site is publicly accessible.', 'wc-bouncer-whatsapp' );
+        }
+
         wp_send_json_success( [
-            'message'        => sprintf( __( 'Successfully connected! Created %d webhook(s).', 'wc-bouncer-whatsapp' ), count( $webhook_result['webhooks'] ) ),
+            'message'        => $message,
             'integration_id' => $data['integrationId'] ?? '',
             'webhook_url'    => $config['webhook_url'],
             'webhook_secret' => $config['webhook_secret'],
@@ -464,59 +508,126 @@ class WebhookConfigPage {
         ] );
     }
 
-    private function create_wc_api_keys(): ?array {
-        if ( ! class_exists( 'WC_Auth' ) ) {
-            return null;
+    public function ajax_disconnect_from_bouncer(): void {
+        if ( ! check_ajax_referer( 'wc_bouncer_disconnect', 'nonce', false ) ) {
+            wp_send_json_error( [ 'message' => __( 'Security check failed.', 'wc-bouncer-whatsapp' ) ] );
         }
 
-        global $wpdb;
-
-        // Check if we already have Bouncer API keys
-        $existing = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT consumer_key, consumer_secret FROM {$wpdb->prefix}woocommerce_api_keys WHERE description = %s AND permissions = %s LIMIT 1",
-                'Bouncer WhatsApp Integration',
-                'read'
-            )
-        );
-
-        if ( $existing ) {
-            return [
-                'consumer_key'    => $existing->consumer_key,
-                'consumer_secret' => $existing->consumer_secret,
-            ];
+        if ( ! current_user_can( 'manage_woocommerce' ) ) {
+            wp_send_json_error( [ 'message' => __( 'Permission denied.', 'wc-bouncer-whatsapp' ) ] );
         }
 
-        // Create new API keys
-        $user_id     = get_current_user_id();
-        $description = 'Bouncer WhatsApp Integration';
-        $permissions = 'read';
+        $this->delete_bouncer_webhooks();
 
-        $consumer_key    = 'ck_' . wc_rand_hash();
-        $consumer_secret = 'cs_' . wc_rand_hash();
-
-        $data = [
-            'user_id'         => $user_id,
-            'description'     => $description,
-            'permissions'     => $permissions,
-            'consumer_key'    => wc_api_hash( $consumer_key ),
-            'consumer_secret' => $consumer_secret,
-            'truncated_key'   => substr( $consumer_key, -7 ),
-        ];
-
-        $wpdb->insert(
-            $wpdb->prefix . 'woocommerce_api_keys',
-            $data,
-            [ '%d', '%s', '%s', '%s', '%s', '%s' ]
-        );
-
-        if ( ! $wpdb->insert_id ) {
-            return null;
+        $integration_id = $this->settings->get( 'integration_id', '' );
+        if ( ! empty( $integration_id ) ) {
+            $api_client = new \Bouncer\WooCommerce\WhatsApp\Service\ApiClient( $this->settings );
+            $api_client->disconnect_woocommerce( $integration_id );
         }
 
-        return [
-            'consumer_key'    => $consumer_key,
-            'consumer_secret' => $consumer_secret,
-        ];
+        $this->settings->update( [
+            'integration_id'    => '',
+            'connection_status' => '',
+            'wc_consumer_key'   => '',
+            'wc_consumer_secret' => '',
+        ] );
+
+        update_option( $this->option_name, [
+            'webhook_url'    => '',
+            'webhook_secret' => '',
+            'enabled_events' => [],
+        ] );
+
+        wp_send_json_success( [ 'message' => __( 'Disconnected from Bouncer.', 'wc-bouncer-whatsapp' ) ] );
     }
+
+    private function delete_bouncer_webhooks(): void {
+        if ( ! class_exists( 'WC_Data_Store' ) ) {
+            return;
+        }
+
+        $data_store  = \WC_Data_Store::load( 'webhook' );
+        $webhook_ids = array_merge(
+            $data_store->get_webhooks_ids( 'active' ),
+            $data_store->get_webhooks_ids( 'paused' ),
+            $data_store->get_webhooks_ids( 'disabled' )
+        );
+
+        foreach ( $webhook_ids as $webhook_id ) {
+            $webhook = \wc_get_webhook( $webhook_id );
+            if ( ! $webhook ) {
+                continue;
+            }
+            $delivery_url = $webhook->get_delivery_url();
+            $name         = $webhook->get_name();
+            if ( strpos( $delivery_url, 'bouncer.my' ) !== false || strpos( $name, 'Bouncer' ) !== false || strpos( $delivery_url, 'localhost' ) !== false ) {
+                $webhook->delete( true );
+            }
+        }
+    }
+
+	private function create_wc_api_keys(): ?array {
+		global $wpdb;
+
+		// Check if we have stored raw keys from a previous creation.
+		// We cannot recover raw keys from the WC table (consumer_key is hashed there),
+		// so we keep the raw values in WP options.
+		$stored_key    = $this->settings->get( 'wc_consumer_key', '' );
+		$stored_secret = $this->settings->get( 'wc_consumer_secret', '' );
+
+		if ( ! empty( $stored_key ) && ! empty( $stored_secret ) ) {
+			return [
+				'consumer_key'    => $stored_key,
+				'consumer_secret' => $stored_secret,
+			];
+		}
+
+		// Need WooCommerce for wc_rand_hash / wc_api_hash
+		if ( ! function_exists( 'wc_rand_hash' ) ) {
+			return null;
+		}
+
+		// Delete any stale Bouncer rows so we don't accumulate orphaned keys
+		$wpdb->delete(
+			$wpdb->prefix . 'woocommerce_api_keys',
+			[ 'description' => 'Bouncer WhatsApp Integration' ],
+			[ '%s' ]
+		);
+
+		// Create new API keys
+		$user_id     = get_current_user_id();
+		$description = 'Bouncer WhatsApp Integration';
+		$permissions = 'read_write';
+
+		$consumer_key    = 'ck_' . wc_rand_hash();
+		$consumer_secret = 'cs_' . wc_rand_hash();
+
+		$wpdb->insert(
+			$wpdb->prefix . 'woocommerce_api_keys',
+			[
+				'user_id'         => $user_id,
+				'description'     => $description,
+				'permissions'     => $permissions,
+				'consumer_key'    => wc_api_hash( $consumer_key ),
+				'consumer_secret' => $consumer_secret,
+				'truncated_key'   => substr( $consumer_key, -7 ),
+			],
+			[ '%d', '%s', '%s', '%s', '%s', '%s' ]
+		);
+
+		if ( ! $wpdb->insert_id ) {
+			return null;
+		}
+
+		// Persist raw keys so we can reuse them on reconnect
+		$this->settings->update( [
+			'wc_consumer_key'    => $consumer_key,
+			'wc_consumer_secret' => $consumer_secret,
+		] );
+
+		return [
+			'consumer_key'    => $consumer_key,
+			'consumer_secret' => $consumer_secret,
+		];
+	}
 }

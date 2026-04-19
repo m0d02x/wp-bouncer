@@ -27,10 +27,7 @@ class Settings {
         $current = $this->get_all();
         $merged = array_merge( $current, $values );
         $sanitized = $this->sanitize( wp_unslash( $merged ) );
-        error_log( '[Bouncer Settings] Saving: ' . wp_json_encode( array_keys( $sanitized ) ) );
-        error_log( '[Bouncer Settings] API key present: ' . ( ! empty( $sanitized['api_key'] ) ? 'yes (' . strlen( $sanitized['api_key'] ) . ' chars)' : 'no' ) );
-        $result = update_option( self::OPTION_NAME, $sanitized );
-        error_log( '[Bouncer Settings] update_option result: ' . ( $result ? 'true' : 'false' ) );
+        update_option( self::OPTION_NAME, $sanitized );
     }
 
     public function defaults(): array {
@@ -39,6 +36,9 @@ class Settings {
             'instance_id'           => '',
             'instance_type'         => '',
             'integration_id'        => '',
+            'wc_consumer_key'       => '',
+            'wc_consumer_secret'    => '',
+            'connection_status'     => '',
             'message_template'      => __( 'Hello {name}, your order {order_number} is now {status}. Total: {amount}.', 'wc-bouncer-whatsapp' ),
             'trigger_statuses'      => [],
             'log_retention'         => 7,
@@ -56,10 +56,13 @@ class Settings {
 
         $data = wp_parse_args( $values, $defaults );
 
-        $data['api_key']          = sanitize_text_field( $data['api_key'] );
-        $data['instance_id']      = sanitize_text_field( $data['instance_id'] );
-        $data['instance_type']    = sanitize_key( $data['instance_type'] ?? '' );
-        $data['integration_id']   = sanitize_text_field( $data['integration_id'] ?? '' );
+        $data['api_key']            = sanitize_text_field( $data['api_key'] );
+        $data['instance_id']        = sanitize_text_field( $data['instance_id'] );
+        $data['instance_type']      = sanitize_key( $data['instance_type'] ?? '' );
+        $data['integration_id']     = sanitize_text_field( $data['integration_id'] ?? '' );
+        $data['wc_consumer_key']    = sanitize_text_field( $data['wc_consumer_key'] ?? '' );
+        $data['wc_consumer_secret'] = sanitize_text_field( $data['wc_consumer_secret'] ?? '' );
+        $data['connection_status']  = sanitize_key( $data['connection_status'] ?? '' );
         $data['message_template'] = wp_kses_post( $data['message_template'] );
         $data['log_retention']    = max( 1, absint( $data['log_retention'] ) );
 

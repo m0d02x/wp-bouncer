@@ -381,11 +381,6 @@ class ApiClient {
 	): array {
 		$endpoint = $this->base_url . '/woocommerce/connect';
 
-		// Debug logging
-		error_log( '[Bouncer] connect_to_woocommerce called' );
-		error_log( '[Bouncer] base_url: ' . $this->base_url );
-		error_log( '[Bouncer] endpoint: ' . $endpoint );
-
 		$payload = [
 			'storeUrl'       => $store_url,
 			'consumerKey'    => $consumer_key,
@@ -401,7 +396,6 @@ class ApiClient {
 		}
 
 		$headers = $this->build_headers();
-		error_log( '[Bouncer] headers: ' . wp_json_encode( $headers ) );
 
 		$response = wp_remote_post(
 			$endpoint,
@@ -413,7 +407,6 @@ class ApiClient {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			error_log( '[Bouncer] WP_Error: ' . $response->get_error_message() );
 			return [
 				'success'        => false,
 				'response_code'  => 0,
@@ -427,9 +420,6 @@ class ApiClient {
 		$body = wp_remote_retrieve_body( $response );
 		$data = json_decode( $body, true );
 
-		error_log( '[Bouncer] response_code: ' . $code );
-		error_log( '[Bouncer] response_body: ' . $body );
-
 		return [
 			'success'        => $code >= 200 && $code < 300,
 			'response_code'  => $code,
@@ -439,13 +429,42 @@ class ApiClient {
 		];
 	}
 
+	public function disconnect_woocommerce( string $integration_id ): array {
+		$endpoint = $this->base_url . '/woocommerce/connect/' . rawurlencode( $integration_id );
+
+		$response = wp_remote_request(
+			$endpoint,
+			[
+				'method'  => 'DELETE',
+				'headers' => $this->build_headers(),
+				'timeout' => 10,
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return [
+				'success'       => false,
+				'response_code' => 0,
+				'response_body' => $response->get_error_message(),
+			];
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		$body = wp_remote_retrieve_body( $response );
+
+		return [
+			'success'       => $code >= 200 && $code < 300,
+			'response_code' => $code,
+			'response_body' => $body,
+		];
+	}
+
 	private function build_headers(): array {
         $headers = [
             'Content-Type' => 'application/json',
         ];
 
         $api_key = $this->settings->get( 'api_key' );
-        error_log( '[Bouncer] build_headers api_key: ' . ( $api_key ? 'present (' . strlen( $api_key ) . ' chars)' : 'MISSING' ) );
         if ( $api_key ) {
             $headers['X-API-Key'] = $api_key;
         }
