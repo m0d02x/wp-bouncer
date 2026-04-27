@@ -47,6 +47,7 @@ class Settings {
             'cloud_template_config' => [
                 'status_template_map' => [],
                 'template_variables'  => [],
+                'template_languages'  => [],
             ],
         ];
     }
@@ -92,6 +93,7 @@ class Settings {
         $cloud_config = [
             'status_template_map' => [],
             'template_variables'  => [],
+            'template_languages'  => [],
         ];
 
         if ( isset( $values['cloud_template_config'] ) && is_array( $values['cloud_template_config'] ) ) {
@@ -120,6 +122,19 @@ class Settings {
                             $cloud_config['template_variables'][ $safe_name ][ $idx ] = sanitize_text_field( $placeholder );
                         }
                     }
+                }
+            }
+
+            if ( isset( $values['cloud_template_config']['template_languages'] ) && is_array( $values['cloud_template_config']['template_languages'] ) ) {
+                foreach ( $values['cloud_template_config']['template_languages'] as $template_name => $language ) {
+                    $safe_name     = sanitize_text_field( $template_name );
+                    $safe_language = sanitize_text_field( $language );
+
+                    if ( '' === $safe_name || '' === $safe_language ) {
+                        continue;
+                    }
+
+                    $cloud_config['template_languages'][ $safe_name ] = $safe_language;
                 }
             }
         }

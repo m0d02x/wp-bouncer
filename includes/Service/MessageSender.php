@@ -145,8 +145,17 @@ class MessageSender {
             }
         }
 
-        // Get template language (default to 'en')
-        $language = $cloud_config['template_languages'][ $template_name ] ?? 'en';
+        $language = $cloud_config['template_languages'][ $template_name ] ?? '';
+
+        if ( '' === $language ) {
+            $language = $this->recover_cloud_template_language( $template_name, $instance );
+        }
+
+        if ( '' === $language ) {
+            $order->add_order_note( sprintf( __( 'Bouncer WhatsApp template "%s" skipped: template language could not be determined.', 'wc-bouncer-whatsapp' ), $template_name ) );
+            $this->logger->record( $order->get_id(), $phone, sprintf( 'Template: %s', $template_name ), 'failed', 0, 'Template language could not be determined.' );
+            return;
+        }
 
         $response = $this->api_client->send_cloud_template( $phone, $template_name, $variables, $instance, $language );
 
@@ -176,5 +185,46 @@ class MessageSender {
         }
 
         return $digits;
+    }
+
+    private function recover_cloud_template_language( string $template_name, string $instance ): string {
+        if ( '' === $template_name || '' === $instance ) {
+            return '';
+        }
+
+        $response = $this->api_client->get_cloud_templates( $instance );
+        if ( ! $response['success'] ) {
+            return '';
+        }
+
+        $data      = $response['data'];
+        $templates = $data['templates'] ?? $data;
+        if ( ! is_array( $templates ) ) {
+            return '';
+        }
+
+        foreach ( $templates as $template ) {
+            $candidate_name = isset( $template['name'] ) ? (string) $template['name'] : '';
+            $language       = isset( $template['language'] ) ? (string) $template['language'] : '';
+
+            if ( $template_name !== $candidate_name || '' === $language ) {
+                continue;
+            }
+
+            $settings     = $this->settings->get_all();
+            $cloud_config = $settings['cloud_template_config'] ?? [];
+
+            if ( ! isset( $cloud_config['template_languages'] ) || ! is_array( $cloud_config['template_languages'] ) ) {
+                $cloud_config['template_languages'] = [];
+            }
+
+            $cloud_config['template_languages'][ $template_name ] = $language;
+            $settings['cloud_template_config']                    = $cloud_config;
+            $this->settings->update( $settings );
+
+            return $language;
+        }
+
+        return '';
     }
 }

@@ -325,10 +325,15 @@ class GeneralSettingsPage {
     private function handle_save_templates(): void {
         check_admin_referer( 'wc_bouncer_save_templates' );
 
-        $cloud_config = $_POST['cloud_template_config'] ?? [];
+        $posted_cloud_config   = $_POST['cloud_template_config'] ?? [];
+        $current               = $this->settings->get_all();
+        $current_cloud_config  = $current['cloud_template_config'] ?? [];
 
-        $current                        = $this->settings->get_all();
-        $current['cloud_template_config'] = $cloud_config;
+        if ( isset( $posted_cloud_config['template_variables'] ) ) {
+            $current_cloud_config['template_variables'] = $posted_cloud_config['template_variables'];
+        }
+
+        $current['cloud_template_config'] = $current_cloud_config;
 
         $this->settings->update( $current );
 
