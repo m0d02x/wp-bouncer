@@ -76,6 +76,26 @@ class LogRepository {
         return (array) $this->db->get_results( $sql, ARRAY_A );
     }
 
+    public function paginated( int $limit = 25, int $offset = 0 ): array {
+        $table  = $this->table_name();
+        $limit  = max( 1, $limit );
+        $offset = max( 0, $offset );
+
+        $sql = $this->db->prepare(
+            "SELECT * FROM {$table} ORDER BY created_at DESC LIMIT %d OFFSET %d",
+            $limit,
+            $offset
+        );
+
+        return (array) $this->db->get_results( $sql, ARRAY_A );
+    }
+
+    public function count(): int {
+        $table = $this->table_name();
+
+        return (int) $this->db->get_var( "SELECT COUNT(*) FROM {$table}" );
+    }
+
     /**
      * Retrieve aggregate counts for dashboard widgets.
      */
@@ -114,5 +134,15 @@ class LogRepository {
         $threshold = gmdate( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ) );
         $sql       = $this->db->prepare( "DELETE FROM {$table} WHERE created_at < %s", $threshold );
         $this->db->query( $sql );
+    }
+
+    public function count_older_than( int $days ): int {
+        $table = $this->table_name();
+        $days  = max( 1, $days );
+
+        $threshold = gmdate( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ) );
+        $sql       = $this->db->prepare( "SELECT COUNT(*) FROM {$table} WHERE created_at < %s", $threshold );
+
+        return (int) $this->db->get_var( $sql );
     }
 }

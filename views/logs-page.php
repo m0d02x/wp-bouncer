@@ -2,10 +2,9 @@
 /** @var array $logs */
 /** @var int $retention */
 /** @var string $table_name */
-
-$total_logs   = count( $logs );
-$success_logs = count( array_filter( $logs, fn( $l ) => 'success' === $l['status'] ) );
-$failed_logs  = $total_logs - $success_logs;
+$success_logs = (int) ( $stats['by_status']['success'] ?? 0 );
+$failed_logs  = max( 0, $total_logs - $success_logs );
+$base_url     = admin_url( 'admin.php?page=wc-bouncer-whatsapp-logs' );
 ?>
 <div class="bouncer-admin-wrap">
     <!-- Page Header -->
@@ -15,7 +14,7 @@ $failed_logs  = $total_logs - $success_logs;
             <?php esc_html_e( 'Message Logs', 'wc-bouncer-whatsapp' ); ?>
         </h1>
         <p class="bouncer-page-description">
-            <?php echo esc_html( sprintf( __( 'Displaying the last %d entries. Auto-deleted after %d days.', 'wc-bouncer-whatsapp' ), 100, $retention ) ); ?>
+            <?php echo esc_html( sprintf( __( 'Showing %1$d logs per page. Logs older than %2$d days are auto-deleted.', 'wc-bouncer-whatsapp' ), $per_page, $retention ) ); ?>
         </p>
     </div>
 
@@ -23,6 +22,13 @@ $failed_logs  = $total_logs - $success_logs;
         <div class="bouncer-alert bouncer-alert-success">
             <span class="dashicons dashicons-yes-alt"></span>
             <div class="bouncer-alert-content"><?php esc_html_e( 'All logs have been cleared.', 'wc-bouncer-whatsapp' ); ?></div>
+        </div>
+    <?php endif; ?>
+
+    <?php if ( isset( $_GET['purged'] ) ) : ?>
+        <div class="bouncer-alert bouncer-alert-success">
+            <span class="dashicons dashicons-yes-alt"></span>
+            <div class="bouncer-alert-content"><?php esc_html_e( 'Expired logs have been purged.', 'wc-bouncer-whatsapp' ); ?></div>
         </div>
     <?php endif; ?>
 
@@ -58,14 +64,25 @@ $failed_logs  = $total_logs - $success_logs;
                 <span class="dashicons dashicons-database"></span>
                 <?php esc_html_e( 'Recent Activity', 'wc-bouncer-whatsapp' ); ?>
             </h3>
-            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin: 0;">
-                <?php wp_nonce_field( 'wc_bouncer_clear_logs' ); ?>
-                <input type="hidden" name="action" value="wc_bouncer_clear_logs" />
-                <button type="submit" class="bouncer-btn bouncer-btn-ghost bouncer-btn-sm" onclick="return confirm('<?php echo esc_js( __( 'Are you sure you want to clear all logs?', 'wc-bouncer-whatsapp' ) ); ?>');">
-                    <span class="dashicons dashicons-trash"></span>
-                    <?php esc_html_e( 'Clear All', 'wc-bouncer-whatsapp' ); ?>
-                </button>
-            </form>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin: 0;">
+                    <?php wp_nonce_field( 'wc_bouncer_purge_old_logs' ); ?>
+                    <input type="hidden" name="action" value="wc_bouncer_purge_old_logs" />
+                    <button type="submit" class="bouncer-btn bouncer-btn-secondary bouncer-btn-sm" onclick="return confirm('<?php echo esc_js( sprintf( __( 'Purge all logs older than %d days?', 'wc-bouncer-whatsapp' ), $retention ) ); ?>');">
+                        <span class="dashicons dashicons-filter"></span>
+                        <?php echo esc_html( sprintf( __( 'Purge Expired (%d)', 'wc-bouncer-whatsapp' ), $expired_count ) ); ?>
+                    </button>
+                </form>
+
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin: 0;">
+                    <?php wp_nonce_field( 'wc_bouncer_clear_logs' ); ?>
+                    <input type="hidden" name="action" value="wc_bouncer_clear_logs" />
+                    <button type="submit" class="bouncer-btn bouncer-btn-ghost bouncer-btn-sm" onclick="return confirm('<?php echo esc_js( __( 'Are you sure you want to clear all logs?', 'wc-bouncer-whatsapp' ) ); ?>');">
+                        <span class="dashicons dashicons-trash"></span>
+                        <?php esc_html_e( 'Clear All', 'wc-bouncer-whatsapp' ); ?>
+                    </button>
+                </form>
+            </div>
         </div>
 
         <?php if ( empty( $logs ) ) : ?>
@@ -132,6 +149,37 @@ $failed_logs  = $total_logs - $success_logs;
                     <?php endforeach; ?>
                 </tbody>
             </table>
+
+            <?php if ( $total_pages > 1 ) : ?>
+                <div class="bouncer-card-body" style="border-top: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div class="bouncer-form-description" style="margin: 0;">
+                        <?php
+                        $from = ( ( $current_page - 1 ) * $per_page ) + 1;
+                        $to   = min( $total_logs, $current_page * $per_page );
+                        echo esc_html( sprintf( __( 'Showing %1$d–%2$d of %3$d logs', 'wc-bouncer-whatsapp' ), $from, $to, $total_logs ) );
+                        ?>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <?php if ( $current_page > 1 ) : ?>
+                            <a class="bouncer-btn bouncer-btn-ghost bouncer-btn-sm" href="<?php echo esc_url( add_query_arg( 'paged', $current_page - 1, $base_url ) ); ?>">
+                                <span class="dashicons dashicons-arrow-left-alt2"></span>
+                                <?php esc_html_e( 'Previous', 'wc-bouncer-whatsapp' ); ?>
+                            </a>
+                        <?php endif; ?>
+
+                        <span class="bouncer-form-description" style="margin: 0; white-space: nowrap;">
+                            <?php echo esc_html( sprintf( __( 'Page %1$d of %2$d', 'wc-bouncer-whatsapp' ), $current_page, $total_pages ) ); ?>
+                        </span>
+
+                        <?php if ( $current_page < $total_pages ) : ?>
+                            <a class="bouncer-btn bouncer-btn-ghost bouncer-btn-sm" href="<?php echo esc_url( add_query_arg( 'paged', $current_page + 1, $base_url ) ); ?>">
+                                <?php esc_html_e( 'Next', 'wc-bouncer-whatsapp' ); ?>
+                                <span class="dashicons dashicons-arrow-right-alt2"></span>
+                            </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 
