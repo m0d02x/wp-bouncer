@@ -2,10 +2,13 @@
 
 namespace Bouncer\WooCommerce\WhatsApp;
 
+use Bouncer\WooCommerce\WhatsApp\Admin\AbandonedOrdersPage;
 use Bouncer\WooCommerce\WhatsApp\Admin\GeneralSettingsPage;
 use Bouncer\WooCommerce\WhatsApp\Admin\LogsPage;
 use Bouncer\WooCommerce\WhatsApp\Admin\WebhookConfigPage;
 use Bouncer\WooCommerce\WhatsApp\Repository\LogRepository;
+use Bouncer\WooCommerce\WhatsApp\Service\AbandonedOrdersScanner;
+use Bouncer\WooCommerce\WhatsApp\Service\AbandonedWebhookDispatcher;
 use Bouncer\WooCommerce\WhatsApp\Service\ApiClient;
 use Bouncer\WooCommerce\WhatsApp\Service\LogRetention;
 use Bouncer\WooCommerce\WhatsApp\Service\Logger;
@@ -19,8 +22,10 @@ class Plugin {
     private GeneralSettingsPage $general_settings_page;
     private LogsPage $logs_page;
     private WebhookConfigPage $webhook_config_page;
+    private AbandonedOrdersPage $abandoned_orders_page;
     private MessageSender $message_sender;
     private LogRetention $log_retention;
+    private AbandonedOrdersScanner $abandoned_scanner;
 
     public function __construct() {
         $this->settings = new Settings();
@@ -37,6 +42,10 @@ class Plugin {
         $this->message_sender        = new MessageSender( $this->settings, $resolver, $api_client, $logger );
         $this->logs_page             = new LogsPage( $repository, $this->settings );
         $this->log_retention         = new LogRetention( $repository, $this->settings );
+
+        $abandoned_dispatcher        = new AbandonedWebhookDispatcher( $logger );
+        $this->abandoned_scanner     = new AbandonedOrdersScanner( $this->settings, $abandoned_dispatcher );
+        $this->abandoned_orders_page = new AbandonedOrdersPage( $this->abandoned_scanner );
     }
 
     public function init(): void {
@@ -46,10 +55,12 @@ class Plugin {
             $this->general_settings_page->register();
             $this->webhook_config_page->register();
             $this->logs_page->register();
+            $this->abandoned_orders_page->register();
         }
 
         $this->message_sender->register();
         $this->log_retention->register();
+        $this->abandoned_scanner->register();
     }
 
     public function load_textdomain(): void {
