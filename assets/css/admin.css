@@ -10,21 +10,24 @@
 
 /* Override WP admin defaults for plugin pages */
 .toplevel_page_wc-bouncer-whatsapp #wpcontent,
-.bouncer-whatsapp_page_wc-bouncer-whatsapp-logs #wpcontent {
+.bouncer-whatsapp_page_wc-bouncer-whatsapp-logs #wpcontent,
+.bouncer-whatsapp_page_wc-bouncer-abandoned-orders #wpcontent {
     padding-left: 0;
     padding-right: 0;
     background: #f9fafb;
 }
 
 .toplevel_page_wc-bouncer-whatsapp #wpbody-content,
-.bouncer-whatsapp_page_wc-bouncer-whatsapp-logs #wpbody-content {
+.bouncer-whatsapp_page_wc-bouncer-whatsapp-logs #wpbody-content,
+.bouncer-whatsapp_page_wc-bouncer-abandoned-orders #wpbody-content {
     padding-bottom: 0;
     padding-right: 0;
     background: #f9fafb;
 }
 
 .toplevel_page_wc-bouncer-whatsapp #wpfooter,
-.bouncer-whatsapp_page_wc-bouncer-whatsapp-logs #wpfooter {
+.bouncer-whatsapp_page_wc-bouncer-whatsapp-logs #wpfooter,
+.bouncer-whatsapp_page_wc-bouncer-abandoned-orders #wpfooter {
     display: none;
 }
 
