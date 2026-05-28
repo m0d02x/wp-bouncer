@@ -17,7 +17,7 @@ class LogsPage {
     }
 
     public function register(): void {
-        add_action( 'admin_menu', [ $this, 'add_menu' ] );
+        add_action( 'admin_menu', [ $this, 'add_menu' ], 30 );
         add_action( 'admin_post_wc_bouncer_clear_logs', [ $this, 'handle_clear_logs' ] );
         add_action( 'admin_post_wc_bouncer_purge_old_logs', [ $this, 'handle_purge_old_logs' ] );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
