@@ -2,9 +2,26 @@
 /** @var array $logs */
 /** @var int $retention */
 /** @var string $table_name */
+/** @var string $filter */
+/** @var array $counts */
 $success_logs = (int) ( $stats['by_status']['success'] ?? 0 );
 $failed_logs  = max( 0, $total_logs - $success_logs );
 $base_url     = admin_url( 'admin.php?page=wc-bouncer-whatsapp-logs' );
+$filter_url   = function ( string $type ) use ( $base_url ) {
+    return 'all' === $type ? $base_url : add_query_arg( 'type', $type, $base_url );
+};
+$paged_url    = function ( int $page ) use ( $base_url, $filter ) {
+    $url = add_query_arg( 'paged', $page, $base_url );
+    if ( 'all' !== $filter ) {
+        $url = add_query_arg( 'type', $filter, $url );
+    }
+    return $url;
+};
+$filter_pills = [
+    'all'     => __( 'All', 'wc-bouncer-whatsapp' ),
+    'message' => __( 'WhatsApp messages', 'wc-bouncer-whatsapp' ),
+    'webhook' => __( 'Webhooks', 'wc-bouncer-whatsapp' ),
+];
 ?>
 <div class="bouncer-admin-wrap">
     <!-- Page Header -->
@@ -55,6 +72,18 @@ $base_url     = admin_url( 'admin.php?page=wc-bouncer-whatsapp-logs' );
             </div>
             <div class="bouncer-stat-value" style="color: #dc2626;"><?php echo esc_html( $failed_logs ); ?></div>
         </div>
+    </div>
+
+    <!-- Filter pills -->
+    <div class="bouncer-tabs" style="margin-bottom: 16px;">
+        <?php foreach ( $filter_pills as $pill_key => $pill_label ) :
+            $count = (int) ( $counts[ $pill_key ] ?? 0 );
+            ?>
+            <a href="<?php echo esc_url( $filter_url( $pill_key ) ); ?>" class="bouncer-tab <?php echo $filter === $pill_key ? 'active' : ''; ?>">
+                <?php echo esc_html( $pill_label ); ?>
+                <span style="opacity: 0.6; margin-left: 4px;">(<?php echo (int) $count; ?>)</span>
+            </a>
+        <?php endforeach; ?>
     </div>
 
     <!-- Logs Table -->
@@ -161,7 +190,7 @@ $base_url     = admin_url( 'admin.php?page=wc-bouncer-whatsapp-logs' );
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                         <?php if ( $current_page > 1 ) : ?>
-                            <a class="bouncer-btn bouncer-btn-ghost bouncer-btn-sm" href="<?php echo esc_url( add_query_arg( 'paged', $current_page - 1, $base_url ) ); ?>">
+                            <a class="bouncer-btn bouncer-btn-ghost bouncer-btn-sm" href="<?php echo esc_url( $paged_url( $current_page - 1 ) ); ?>">
                                 <span class="dashicons dashicons-arrow-left-alt2"></span>
                                 <?php esc_html_e( 'Previous', 'wc-bouncer-whatsapp' ); ?>
                             </a>
@@ -172,7 +201,7 @@ $base_url     = admin_url( 'admin.php?page=wc-bouncer-whatsapp-logs' );
                         </span>
 
                         <?php if ( $current_page < $total_pages ) : ?>
-                            <a class="bouncer-btn bouncer-btn-ghost bouncer-btn-sm" href="<?php echo esc_url( add_query_arg( 'paged', $current_page + 1, $base_url ) ); ?>">
+                            <a class="bouncer-btn bouncer-btn-ghost bouncer-btn-sm" href="<?php echo esc_url( $paged_url( $current_page + 1 ) ); ?>">
                                 <?php esc_html_e( 'Next', 'wc-bouncer-whatsapp' ); ?>
                                 <span class="dashicons dashicons-arrow-right-alt2"></span>
                             </a>

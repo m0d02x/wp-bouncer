@@ -90,10 +90,65 @@ class LogRepository {
         return (array) $this->db->get_results( $sql, ARRAY_A );
     }
 
+    /**
+     * @param string $filter One of 'all', 'message', 'webhook'.
+     *   - 'webhook' matches rows whose message starts with 'abandoned.'.
+     *   - 'message' matches everything else.
+     */
+    public function paginated_filtered( string $filter, int $limit = 25, int $offset = 0 ): array {
+        $table  = $this->table_name();
+        $limit  = max( 1, $limit );
+        $offset = max( 0, $offset );
+
+        $where = $this->build_filter_where( $filter );
+        if ( null === $where ) {
+            return $this->paginated( $limit, $offset );
+        }
+
+        $sql = $this->db->prepare(
+            "SELECT * FROM {$table} WHERE {$where['clause']} ORDER BY created_at DESC LIMIT %d OFFSET %d",
+            array_merge( $where['args'], [ $limit, $offset ] )
+        );
+
+        return (array) $this->db->get_results( $sql, ARRAY_A );
+    }
+
     public function count(): int {
         $table = $this->table_name();
 
         return (int) $this->db->get_var( "SELECT COUNT(*) FROM {$table}" );
+    }
+
+    public function count_filtered( string $filter ): int {
+        $table = $this->table_name();
+        $where = $this->build_filter_where( $filter );
+        if ( null === $where ) {
+            return $this->count();
+        }
+
+        $sql = $this->db->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE {$where['clause']}",
+            $where['args']
+        );
+
+        return (int) $this->db->get_var( $sql );
+    }
+
+    /**
+     * @return array{clause:string,args:array}|null Null when no filter applies.
+     */
+    private function build_filter_where( string $filter ): ?array {
+        $needle = $this->db->esc_like( 'abandoned.' ) . '%';
+
+        if ( 'webhook' === $filter ) {
+            return [ 'clause' => 'message LIKE %s', 'args' => [ $needle ] ];
+        }
+
+        if ( 'message' === $filter ) {
+            return [ 'clause' => 'message NOT LIKE %s', 'args' => [ $needle ] ];
+        }
+
+        return null;
     }
 
     /**

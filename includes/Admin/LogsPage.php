@@ -54,14 +54,25 @@ class LogsPage {
 
         $retention      = (int) $this->settings->get( 'log_retention', 7 );
         $per_page       = 25;
-        $total_logs     = $this->repository->count();
+
+        $filter = isset( $_GET['type'] ) ? sanitize_key( wp_unslash( $_GET['type'] ) ) : 'all';
+        if ( ! in_array( $filter, [ 'all', 'message', 'webhook' ], true ) ) {
+            $filter = 'all';
+        }
+
+        $total_logs     = $this->repository->count_filtered( $filter );
         $total_pages    = max( 1, (int) ceil( $total_logs / $per_page ) );
         $current_page   = min( max( 1, absint( $_GET['paged'] ?? 1 ) ), $total_pages );
         $offset         = ( $current_page - 1 ) * $per_page;
-        $logs           = $this->repository->paginated( $per_page, $offset );
+        $logs           = $this->repository->paginated_filtered( $filter, $per_page, $offset );
         $stats          = $this->repository->stats();
         $expired_count  = $this->repository->count_older_than( $retention );
         $table_name     = $this->repository->table_name();
+        $counts         = [
+            'all'     => $this->repository->count(),
+            'message' => $this->repository->count_filtered( 'message' ),
+            'webhook' => $this->repository->count_filtered( 'webhook' ),
+        ];
 
         include WC_BOUNCER_WHATSAPP_PLUGIN_DIR . 'views/logs-page.php';
     }
