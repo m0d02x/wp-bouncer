@@ -34,7 +34,7 @@ receive these abandoned events. It accepts any event whose normalized name
 | Field | Type | Notes |
 |---|---|---|
 | Enable abandoned tracking | toggle | Master switch |
-| Bouncer Webhook URL | text | e.g. `https://api.bouncer.my/api/v1/webhooks/woocommerce/{integrationId}` |
+| Bouncer Webhook URL | text | e.g. `https://api.bouncer.my/api/v1/webhook/woocommerce/{integrationId}` (path is `/webhook/`, singular — copy verbatim from Bouncer's Developer settings) |
 | Bouncer Webhook Secret | password | Used to compute HMAC signature (see §4) |
 | Track `pending` orders | toggle + threshold (minutes) | Default 30 min |
 | Track `on-hold` orders | toggle + threshold (minutes) | Default 1440 (24h) |
@@ -209,8 +209,18 @@ In the new settings page, add:
 
 ### 7. Edge cases to handle explicitly
 
-1. **No billing phone on order** — still send the webhook. Bouncer needs the order data;
-   phone matching happens server-side.
+1. **No billing phone on order** — Bouncer's webhook processor will accept the webhook
+   but log it as `processed` with `error: "Invalid phone number"` and **will not fire any
+   workflow** (see `webhook-processor.ts:411-453`). Recommended behaviour: still POST
+   the event (so it appears in Bouncer's audit log) but also skip-and-mark dedup so the
+   plugin doesn't re-attempt every sweep. Consider adding a setting "Skip orders without
+   billing phone" to short-circuit before the HTTP call when the user wants quieter
+   plugin logs.
+   Note: Bouncer normalises the phone using a hardcoded default country code of `60`
+   (Malaysia) in `webhook-processor.ts:413`. International stores will need either
+   E.164-formatted phones in WooCommerce billing, or a server-side fix to make the
+   default configurable per integration. Flag this to the Bouncer team if you serve
+   non-MY merchants.
 2. **Order paid via late callback (race)** — the meta flag still prevents re-fire even
    if status changed mid-sweep. Acceptable.
 3. **Plugin reactivation** — re-register the cron. Don't wipe existing
@@ -268,7 +278,7 @@ Coordinate these with the backend owner before this plugin ships:
   execution variable shape (so this plugin sends data the workflow can consume).
 - `apps/server/src/lib/woocommerce-signature.ts` — HMAC algorithm to mirror.
 - `apps/server/src/routes/webhooks/woocommerce.ts` — HTTP route, URL pattern
-  `/api/v1/webhooks/woocommerce/:integrationId`.
+  `/api/v1/webhook/woocommerce/:integrationId` (singular `webhook`).
 - `apps/web/src/components/workflow/config-panels/triggers/trigger-woocommerce-config.tsx:25-27`
   — the three trigger slugs this plugin must emit.
 
