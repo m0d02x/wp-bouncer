@@ -68,7 +68,7 @@ $has_instance = ! empty( $settings['instance_id'] );
         </a>
         <a href="#webhooks" class="bouncer-tab <?php echo 'webhooks' === $active_tab ? 'active' : ''; ?>" data-tab="webhooks">
             <span class="dashicons dashicons-rest-api"></span>
-            <?php esc_html_e( 'Webhooks', 'wc-bouncer-whatsapp' ); ?>
+            <?php esc_html_e( 'Real-time Events', 'wc-bouncer-whatsapp' ); ?>
         </a>
     </div>
 
@@ -775,13 +775,17 @@ $has_instance = ! empty( $settings['instance_id'] );
         <?php endif; ?>
     </div>
 
-    <!-- Webhooks Tab -->
+    <!-- Real-time Events Tab -->
     <div id="webhooks" class="bouncer-tab-content <?php echo 'webhooks' === $active_tab ? 'active' : ''; ?>">
         <?php
         $connection_status = $settings['connection_status'] ?? '';
         $integration_id    = $settings['integration_id'] ?? '';
         $is_connected      = 'connected' === $connection_status && ! empty( $integration_id );
         ?>
+
+        <p class="bouncer-form-description" style="margin: 0 0 16px 0;">
+            <?php esc_html_e( 'Sends order events (created, updated, deleted) to Bouncer in real time using WooCommerce webhooks. Required for any Bouncer workflow that reacts to order changes — including the Abandoned Orders feature.', 'wc-bouncer-whatsapp' ); ?>
+        </p>
 
         <?php if ( $is_connected ) : ?>
         <div class="bouncer-card" style="background: #e7f5e7; border-left: 4px solid #46b450;">
