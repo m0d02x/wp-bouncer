@@ -5,6 +5,8 @@ namespace Bouncer\WooCommerce\WhatsApp\Infrastructure;
 use Bouncer\WooCommerce\WhatsApp\Repository\LogRepository;
 use Bouncer\WooCommerce\WhatsApp\Service\AbandonedOrdersScanner;
 use Bouncer\WooCommerce\WhatsApp\Service\AbandonedWebhookDispatcher;
+use Bouncer\WooCommerce\WhatsApp\Service\ApiClient;
+use Bouncer\WooCommerce\WhatsApp\Service\EventSync;
 use Bouncer\WooCommerce\WhatsApp\Service\LogRetention;
 use Bouncer\WooCommerce\WhatsApp\Service\Logger;
 use Bouncer\WooCommerce\WhatsApp\Settings\Settings;
@@ -23,6 +25,8 @@ class Installer {
 
         $scanner = new AbandonedOrdersScanner( $settings, new AbandonedWebhookDispatcher( new Logger( $repository ) ) );
         $scanner->ensure_schedule();
+
+        ( new EventSync( $settings, new ApiClient( $settings ) ) )->sync_on_activation();
     }
 
     public static function deactivate(): void {

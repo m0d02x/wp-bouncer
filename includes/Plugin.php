@@ -10,6 +10,7 @@ use Bouncer\WooCommerce\WhatsApp\Repository\LogRepository;
 use Bouncer\WooCommerce\WhatsApp\Service\AbandonedOrdersScanner;
 use Bouncer\WooCommerce\WhatsApp\Service\AbandonedWebhookDispatcher;
 use Bouncer\WooCommerce\WhatsApp\Service\ApiClient;
+use Bouncer\WooCommerce\WhatsApp\Service\EventSync;
 use Bouncer\WooCommerce\WhatsApp\Service\LogRetention;
 use Bouncer\WooCommerce\WhatsApp\Service\Logger;
 use Bouncer\WooCommerce\WhatsApp\Service\MessageSender;
@@ -26,6 +27,7 @@ class Plugin {
     private MessageSender $message_sender;
     private LogRetention $log_retention;
     private AbandonedOrdersScanner $abandoned_scanner;
+    private EventSync $event_sync;
 
     public function __construct() {
         $this->settings = new Settings();
@@ -46,6 +48,7 @@ class Plugin {
         $abandoned_dispatcher        = new AbandonedWebhookDispatcher( $logger );
         $this->abandoned_scanner     = new AbandonedOrdersScanner( $this->settings, $abandoned_dispatcher );
         $this->abandoned_orders_page = new AbandonedOrdersPage( $this->abandoned_scanner );
+        $this->event_sync            = new EventSync( $this->settings, $api_client );
     }
 
     public function init(): void {
@@ -61,6 +64,7 @@ class Plugin {
         $this->message_sender->register();
         $this->log_retention->register();
         $this->abandoned_scanner->register();
+        $this->event_sync->register();
     }
 
     public function load_textdomain(): void {

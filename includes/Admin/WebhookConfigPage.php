@@ -405,7 +405,10 @@ class WebhookConfigPage {
             wp_send_json_error( [ 'message' => __( 'Permission denied.', 'wc-bouncer-whatsapp' ) ] );
         }
 
-        $enabled_events = isset( $_POST['enabled_events'] ) ? array_map( 'sanitize_text_field', $_POST['enabled_events'] ) : [];
+        // The plugin is the source of truth for which events it can emit. Ignore
+        // the posted checkbox list and always declare the full SUPPORTED_EVENTS
+        // set so Bouncer's enabled_events allowlist matches reality.
+        $enabled_events = \Bouncer\WooCommerce\WhatsApp\Service\Events::SUPPORTED_EVENTS;
         $store_url      = home_url();
 
         $consumer_key    = $this->settings->get( 'wc_consumer_key', '' );
