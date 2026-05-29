@@ -479,9 +479,21 @@ class WebhookConfigPage {
             wp_send_json_error( [ 'message' => __( 'Connected to Bouncer but failed to create WooCommerce webhooks: ', 'wc-bouncer-whatsapp' ) . $webhook_result['error'] ] );
         }
 
+        $native_count    = count( $webhook_result['webhooks'] );
+        $synthetic_count = 0;
+        foreach ( \Bouncer\WooCommerce\WhatsApp\Service\Events::SUPPORTED_EVENTS as $topic ) {
+            if ( 0 === strpos( $topic, 'order.abandoned.' ) ) {
+                $synthetic_count++;
+            }
+        }
+        $total = $native_count + $synthetic_count;
+
         $message = sprintf(
-            __( 'Connected to Bouncer! Created %d webhook(s).', 'wc-bouncer-whatsapp' ),
-            count( $webhook_result['webhooks'] )
+            /* translators: 1: total event count, 2: WC-native count, 3: abandoned-order count */
+            __( 'Connected to Bouncer! %1$d events enabled (%2$d real-time + %3$d abandoned-order).', 'wc-bouncer-whatsapp' ),
+            $total,
+            $native_count,
+            $synthetic_count
         );
 
         if ( ! empty( $data['connectionVerified'] ) && ! empty( $data['storeName'] ) ) {

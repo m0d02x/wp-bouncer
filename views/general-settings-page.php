@@ -875,8 +875,11 @@ $has_instance = ! empty( $settings['instance_id'] );
             <div class="bouncer-card-header">
                 <h3 class="bouncer-card-title">
                     <span class="dashicons dashicons-admin-links"></span>
-                    <?php esc_html_e( 'Active Webhooks', 'wc-bouncer-whatsapp' ); ?>
+                    <?php esc_html_e( 'Real-time Webhooks', 'wc-bouncer-whatsapp' ); ?>
                 </h3>
+                <span class="bouncer-form-description" style="margin: 0;">
+                    <?php esc_html_e( 'WooCommerce-native', 'wc-bouncer-whatsapp' ); ?>
+                </span>
             </div>
             <div class="bouncer-card-body">
                 <div id="bouncer-webhooks-list">
@@ -900,7 +903,7 @@ $has_instance = ! empty( $settings['instance_id'] );
                     
                     if ( empty( $bouncer_webhooks ) ) : ?>
                         <p style="color: #6b7280; margin: 0;">
-                            <?php esc_html_e( 'No Bouncer webhooks configured yet. Click "Auto-Configure Webhooks" above to get started.', 'wc-bouncer-whatsapp' ); ?>
+                            <?php esc_html_e( 'No real-time webhooks configured yet. Click "Connect to Bouncer" above to register them.', 'wc-bouncer-whatsapp' ); ?>
                         </p>
                     <?php else : ?>
                         <table class="bouncer-table">
@@ -935,6 +938,64 @@ $has_instance = ! empty( $settings['instance_id'] );
                 </div>
             </div>
         </div>
+
+        <?php
+        $abandoned_topics = array_values( array_filter(
+            \Bouncer\WooCommerce\WhatsApp\Service\Events::SUPPORTED_EVENTS,
+            static function ( $topic ) {
+                return 0 === strpos( $topic, 'order.abandoned.' );
+            }
+        ) );
+        ?>
+        <?php if ( ! empty( $abandoned_topics ) ) : ?>
+            <div class="bouncer-card" style="margin-top: 16px;">
+                <div class="bouncer-card-header">
+                    <h3 class="bouncer-card-title">
+                        <span class="dashicons dashicons-cart"></span>
+                        <?php esc_html_e( 'Abandoned-order Events', 'wc-bouncer-whatsapp' ); ?>
+                    </h3>
+                    <span class="bouncer-form-description" style="margin: 0;">
+                        <?php esc_html_e( 'Synthetic, sent by plugin cron', 'wc-bouncer-whatsapp' ); ?>
+                    </span>
+                </div>
+                <div class="bouncer-card-body">
+                    <p class="bouncer-form-description" style="margin: 0 0 12px 0;">
+                        <?php
+                        $abandoned_link = sprintf(
+                            '<a href="%s">%s</a>',
+                            esc_url( admin_url( 'admin.php?page=' . \Bouncer\WooCommerce\WhatsApp\Admin\AbandonedOrdersPage::MENU_SLUG ) ),
+                            esc_html__( 'Abandoned Orders', 'wc-bouncer-whatsapp' )
+                        );
+                        /* translators: %s: link to abandoned orders page */
+                        printf(
+                            wp_kses( __( 'WooCommerce has no native event for stuck orders. This plugin\'s cron POSTs these synthetic events to the same webhook URL. Configure thresholds in %s.', 'wc-bouncer-whatsapp' ), [ 'a' => [ 'href' => [] ] ] ),
+                            $abandoned_link // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already escaped.
+                        );
+                        ?>
+                    </p>
+                    <table class="bouncer-table">
+                        <thead>
+                            <tr>
+                                <th><?php esc_html_e( 'Event', 'wc-bouncer-whatsapp' ); ?></th>
+                                <th style="width: 120px;"><?php esc_html_e( 'Status', 'wc-bouncer-whatsapp' ); ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ( $abandoned_topics as $topic ) : ?>
+                                <tr>
+                                    <td><code><?php echo esc_html( $topic ); ?></code></td>
+                                    <td>
+                                        <span class="bouncer-status-badge connected" style="font-size: 12px;">
+                                            <?php esc_html_e( 'Declared', 'wc-bouncer-whatsapp' ); ?>
+                                        </span>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 
