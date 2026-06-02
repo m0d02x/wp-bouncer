@@ -6,6 +6,7 @@ use Bouncer\WooCommerce\WhatsApp\Admin\AbandonedOrdersPage;
 use Bouncer\WooCommerce\WhatsApp\Admin\GeneralSettingsPage;
 use Bouncer\WooCommerce\WhatsApp\Admin\LogsPage;
 use Bouncer\WooCommerce\WhatsApp\Admin\WebhookConfigPage;
+use Bouncer\WooCommerce\WhatsApp\Integrations\FunnelKit\FunnelKitIntegration;
 use Bouncer\WooCommerce\WhatsApp\Repository\LogRepository;
 use Bouncer\WooCommerce\WhatsApp\Service\AbandonedOrdersScanner;
 use Bouncer\WooCommerce\WhatsApp\Service\AbandonedWebhookDispatcher;
@@ -28,6 +29,7 @@ class Plugin {
     private LogRetention $log_retention;
     private AbandonedOrdersScanner $abandoned_scanner;
     private EventSync $event_sync;
+    private FunnelKitIntegration $funnelkit_integration;
 
     public function __construct() {
         $this->settings = new Settings();
@@ -49,6 +51,7 @@ class Plugin {
         $this->abandoned_scanner     = new AbandonedOrdersScanner( $this->settings, $abandoned_dispatcher );
         $this->abandoned_orders_page = new AbandonedOrdersPage( $this->abandoned_scanner );
         $this->event_sync            = new EventSync( $this->settings, $api_client );
+        $this->funnelkit_integration = new FunnelKitIntegration( $this->settings );
     }
 
     public function init(): void {
@@ -65,6 +68,7 @@ class Plugin {
         $this->log_retention->register();
         $this->abandoned_scanner->register();
         $this->event_sync->register();
+        $this->funnelkit_integration->register();
     }
 
     public function load_textdomain(): void {
