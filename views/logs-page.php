@@ -35,6 +35,36 @@ $response_is_success = function ( array $log ): bool {
 
     return is_array( $response ) && true === ( $response['success'] ?? false );
 };
+$extract_phone_from_response = function ( string $response_body ): string {
+    if ( '' === $response_body ) {
+        return '';
+    }
+
+    $response = json_decode( $response_body, true );
+    if ( ! is_array( $response ) || empty( $response['messageId'] ) || ! is_string( $response['messageId'] ) ) {
+        return '';
+    }
+
+    if ( ! preg_match( '/wamid\.HBg[LM]([A-Za-z0-9+\/=]+?)(?:VAg|FQIA)/', $response['messageId'], $matches ) ) {
+        return '';
+    }
+
+    $phone = base64_decode( $matches[1], true );
+
+    return false !== $phone && preg_match( '/^\d{8,15}$/', $phone ) ? $phone : '';
+};
+$extract_message_from_response = function ( string $response_body ): string {
+    if ( '' === $response_body ) {
+        return '';
+    }
+
+    $response = json_decode( $response_body, true );
+    if ( ! is_array( $response ) || empty( $response['renderedContent'] ) || ! is_string( $response['renderedContent'] ) ) {
+        return '';
+    }
+
+    return $response['renderedContent'];
+};
 ?>
 <div class="bouncer-admin-wrap">
     <!-- Page Header -->
@@ -152,6 +182,16 @@ $response_is_success = function ( array $log ): bool {
                         $timestamp = get_date_from_gmt( $gmt, 'M j, H:i' );
                         $is_success = $response_is_success( $log );
                         $display_phone = (string) $log['phone'];
+                        if ( '' === $display_phone && $is_success ) {
+                            $display_phone = $extract_phone_from_response( (string) ( $log['response_body'] ?? '' ) );
+                        }
+                        $display_message = (string) $log['message'];
+                        if ( '[FunnelKit] Message' === $display_message ) {
+                            $response_message = $extract_message_from_response( (string) ( $log['response_body'] ?? '' ) );
+                            if ( '' !== $response_message ) {
+                                $display_message = $response_message;
+                            }
+                        }
                     ?>
                         <tr>
                             <td>
@@ -181,7 +221,7 @@ $response_is_success = function ( array $log ): bool {
                                 <?php endif; ?>
                             </td>
                             <td>
-                                <div class="bouncer-log-message"><?php echo esc_html( mb_strimwidth( $log['message'], 0, 60, '...' ) ); ?></div>
+                                <div class="bouncer-log-message"><?php echo esc_html( mb_strimwidth( $display_message, 0, 60, '...' ) ); ?></div>
                             </td>
                             <td>
                                 <?php if ( ! empty( $log['response_body'] ) ) : ?>
