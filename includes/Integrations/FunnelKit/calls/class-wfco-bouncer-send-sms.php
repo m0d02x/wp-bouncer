@@ -236,11 +236,8 @@ class WFCO_Bouncer_Send_SMS extends WFCO_Call {
 			'instanceId'   => $this->data['instance_id'],
 			'templateName' => $template_name,
 			'language'     => $template_language,
+			'variables'    => (object) $variables,
 		);
-
-		if ( ! empty( $variables ) ) {
-			$body['variables'] = $variables;
-		}
 
 		$res = $this->make_wp_requests( $url, json_encode( $body ), $headers, BWF_CO::$POST );
 

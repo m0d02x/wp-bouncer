@@ -80,14 +80,11 @@ class ApiClient {
             'phoneNumber'  => $phone_number,
             'templateName' => $template_name,
             'language'     => $language,
+            'variables'    => (object) $variables,
         ];
 
         if ( ! empty( $instance ) ) {
             $payload['instanceId'] = $instance;
-        }
-
-        if ( ! empty( $variables ) ) {
-            $payload['variables'] = $variables;
         }
 
         $headers = $this->build_headers();

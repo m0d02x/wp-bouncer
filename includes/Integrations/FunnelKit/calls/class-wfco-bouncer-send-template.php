@@ -5,7 +5,7 @@ class WFCO_Bouncer_Send_Template extends WFCO_Call {
 	private static $instance = null;
 
 	public function __construct() {
-		$this->required_fields = array( 'api_key', 'instance_id', 'number', 'template_name', 'variables' );
+		$this->required_fields = array( 'api_key', 'instance_id', 'number', 'template_name' );
 	}
 
 	public static function get_instance() {
@@ -47,12 +47,8 @@ class WFCO_Bouncer_Send_Template extends WFCO_Call {
 			'instanceId'   => $this->data['instance_id'],
 			'templateName' => $this->data['template_name'],
 			'language'     => isset( $this->data['language'] ) ? $this->data['language'] : 'en',
+			'variables'    => isset( $this->data['variables'] ) && is_array( $this->data['variables'] ) ? (object) $this->data['variables'] : (object) array(),
 		);
-
-		// Add variables if not empty
-		if ( ! empty( $this->data['variables'] ) && is_array( $this->data['variables'] ) ) {
-			$body['variables'] = $this->data['variables'];
-		}
 
 		$res = $this->make_wp_requests( $url, json_encode( $body ), $headers, BWF_CO::$POST );
 
