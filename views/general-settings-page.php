@@ -62,6 +62,10 @@ $has_instance = ! empty( $settings['instance_id'] );
             <span class="dashicons dashicons-email"></span>
             <?php esc_html_e( 'Test', 'wc-bouncer-whatsapp' ); ?>
         </a>
+        <a href="#integrations" class="bouncer-tab <?php echo 'integrations' === $active_tab ? 'active' : ''; ?>" data-tab="integrations">
+            <span class="dashicons dashicons-admin-generic"></span>
+            <?php esc_html_e( 'Integrations', 'wc-bouncer-whatsapp' ); ?>
+        </a>
         <a href="#tools" class="bouncer-tab <?php echo 'tools' === $active_tab ? 'active' : ''; ?>" data-tab="tools">
             <span class="dashicons dashicons-admin-tools"></span>
             <?php esc_html_e( 'Tools', 'wc-bouncer-whatsapp' ); ?>
@@ -202,6 +206,65 @@ $has_instance = ! empty( $settings['instance_id'] );
                 <button type="submit" class="bouncer-btn bouncer-btn-primary">
                     <span class="dashicons dashicons-saved"></span>
                     <?php esc_html_e( 'Save Settings', 'wc-bouncer-whatsapp' ); ?>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Integrations Tab -->
+    <div id="integrations" class="bouncer-tab-content <?php echo 'integrations' === $active_tab ? 'active' : ''; ?>">
+        <form method="post">
+            <?php wp_nonce_field( 'wc_bouncer_save_integrations' ); ?>
+            <input type="hidden" name="wc_bouncer_action" value="save_integrations" />
+
+            <div class="bouncer-card">
+                <div class="bouncer-card-header">
+                    <h3 class="bouncer-card-title">
+                        <span class="dashicons dashicons-randomize"></span>
+                        <?php esc_html_e( 'FunnelKit Automations', 'wc-bouncer-whatsapp' ); ?>
+                    </h3>
+                </div>
+                <div class="bouncer-card-body">
+                    <label class="bouncer-toggle-row" for="funnelkit_enabled" style="display:flex; gap:12px; align-items:flex-start;">
+                        <input
+                            type="checkbox"
+                            name="funnelkit_enabled"
+                            id="funnelkit_enabled"
+                            value="1"
+                            <?php checked( ! empty( $settings['funnelkit_enabled'] ) ); ?>
+                        />
+                        <span>
+                            <strong><?php esc_html_e( 'Enable FunnelKit integration', 'wc-bouncer-whatsapp' ); ?></strong><br />
+                            <span class="bouncer-form-description">
+                                <?php esc_html_e( 'When enabled, Bouncer actions are registered inside FunnelKit Automations and use the API key, selected instance, and template settings from this plugin.', 'wc-bouncer-whatsapp' ); ?>
+                            </span>
+                        </span>
+                    </label>
+
+                    <?php if ( class_exists( 'WFCO_Bouncer', false ) || class_exists( 'BWFCO_Bouncer', false ) ) : ?>
+                        <div class="bouncer-alert bouncer-alert-warning" style="margin-top:16px;">
+                            <span class="dashicons dashicons-warning"></span>
+                            <div class="bouncer-alert-content">
+                                <?php esc_html_e( 'The standalone FunnelKit Bouncer connector appears to be active. Disable it before using the built-in integration to avoid duplicate connector registration.', 'wc-bouncer-whatsapp' ); ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ( ! class_exists( 'BWFAN_Core', false ) ) : ?>
+                        <div class="bouncer-alert bouncer-alert-info" style="margin-top:16px;">
+                            <span class="dashicons dashicons-info"></span>
+                            <div class="bouncer-alert-content">
+                                <?php esc_html_e( 'FunnelKit Automations is not currently active. You can enable this integration now; it will load once FunnelKit is installed and active.', 'wc-bouncer-whatsapp' ); ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="bouncer-form-actions">
+                <button type="submit" class="bouncer-btn bouncer-btn-primary">
+                    <span class="dashicons dashicons-saved"></span>
+                    <?php esc_html_e( 'Save Integrations', 'wc-bouncer-whatsapp' ); ?>
                 </button>
             </div>
         </form>

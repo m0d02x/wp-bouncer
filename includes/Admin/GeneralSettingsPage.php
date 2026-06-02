@@ -319,7 +319,29 @@ class GeneralSettingsPage {
             case 'save_automation':
                 $this->handle_save_automation();
                 break;
+            case 'save_integrations':
+                $this->handle_save_integrations();
+                break;
         }
+    }
+
+    private function handle_save_integrations(): void {
+        check_admin_referer( 'wc_bouncer_save_integrations' );
+
+        $current = $this->settings->get_all();
+        $current['funnelkit_enabled'] = ! empty( $_POST['funnelkit_enabled'] );
+
+        $this->settings->update( $current );
+
+        $redirect = menu_page_url( self::MENU_SLUG, false );
+        if ( empty( $redirect ) ) {
+            $redirect = admin_url( 'admin.php?page=' . self::MENU_SLUG );
+        }
+
+        $redirect = add_query_arg( 'general_saved', 'true', $redirect );
+        $redirect .= '#integrations';
+        wp_safe_redirect( $redirect );
+        exit;
     }
 
     private function handle_save_templates(): void {

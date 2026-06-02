@@ -44,6 +44,7 @@ class Settings {
             'log_retention'         => 7,
             'meta_keys'             => [],
             'status_templates'      => [],
+            'funnelkit_enabled'     => false,
             'cloud_template_config' => [
                 'status_template_map' => [],
                 'template_variables'  => [],
@@ -66,6 +67,7 @@ class Settings {
         $data['connection_status']  = sanitize_key( $data['connection_status'] ?? '' );
         $data['message_template'] = wp_kses_post( $data['message_template'] );
         $data['log_retention']    = max( 1, absint( $data['log_retention'] ) );
+        $data['funnelkit_enabled'] = ! empty( $data['funnelkit_enabled'] );
 
         $statuses = $values['trigger_statuses'] ?? [];
         $statuses = is_array( $statuses ) ? array_map( 'sanitize_key', $statuses ) : [];
