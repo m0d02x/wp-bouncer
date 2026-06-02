@@ -28,6 +28,7 @@ class BWFAN_Bouncer_Send_Template extends BWFAN_Bouncer_Send_SMS {
 	public function get_view() {
 		$unique_slug      = $this->get_slug();
 		$template_options = $this->get_template_options();
+		$variable_summaries = $this->get_template_variable_summaries();
 		?>
         <script type="text/html" id="tmpl-action-<?php echo esc_attr__( $unique_slug ); ?>">
             <#
@@ -54,6 +55,26 @@ class BWFAN_Bouncer_Send_Template extends BWFAN_Bouncer_Send_SMS {
 							<?php endforeach; ?>
                         </select>
                     </div>
+                    <div class="bwfan-col-sm-12 bwfan-pl-0 bwfan-pr-0 bwfan-mb-15 bwfan-bouncer-template-variable-summary-wrap">
+						<?php foreach ( $variable_summaries as $template_value => $summary ) : ?>
+                            <div class="bwfan-bouncer-template-variable-summary" data-template="<?php echo esc_attr( $template_value ); ?>" style="display:none;">
+								<?php echo wp_kses_post( $summary ); ?>
+                            </div>
+						<?php endforeach; ?>
+                    </div>
+                    <script>
+                        jQuery(function($) {
+                            var wrap = $('.bwfan-<?php echo esc_js( $unique_slug ); ?>');
+                            var select = wrap.find('select[name="bwfan[{{data.action_id}}][data][cloud_template_name]"]');
+                            var summaries = wrap.find('.bwfan-bouncer-template-variable-summary');
+                            var update = function() {
+                                var selected = select.val();
+                                summaries.hide().filter('[data-template="' + selected + '"]').show();
+                            };
+                            select.on('change', update);
+                            update();
+                        });
+                    </script>
                     <div class="bwfan-col-sm-12 bwfan-pl-0 bwfan-pr-0 bwfan-mb-15">
                         <p class="bwfan_field_desc"><?php esc_html_e( 'Cloud API mode sends approved Meta templates. Edit template variables in Bouncer WhatsApp settings.', 'autonami-automations-connectors' ); ?></p>
                     </div>
@@ -101,6 +122,25 @@ class BWFAN_Bouncer_Send_Template extends BWFAN_Bouncer_Send_SMS {
 				'description' => __( 'Cloud API requires pre-approved templates from Meta.', 'autonami-automations-connectors' ),
 				'required'    => true,
 			);
+			foreach ( $this->get_template_variable_summaries() as $template_value => $summary ) {
+				$fields[] = array(
+					'id'      => 'cloud_template_variables_' . md5( $template_value ),
+					'type'    => 'notice',
+					'class'   => '',
+					'status'  => 'info',
+					'message' => $summary,
+					'isHtml'  => true,
+					'toggler' => array(
+						'fields'   => array(
+							array(
+								'id'    => 'cloud_template_name',
+								'value' => $template_value,
+							),
+						),
+						'relation' => 'AND',
+					),
+				);
+			}
 			$fields[] = array(
 				'id'      => 'cloud_api_notice',
 				'type'    => 'notice',
@@ -138,6 +178,34 @@ class BWFAN_Bouncer_Send_Template extends BWFAN_Bouncer_Send_SMS {
 		}
 
 		return $template_options;
+	}
+
+	private function get_template_variable_summaries() {
+		$cloud_config       = BWFCO_Bouncer::get_cloud_template_config();
+		$template_variables = isset( $cloud_config['template_variables'] ) && is_array( $cloud_config['template_variables'] ) ? $cloud_config['template_variables'] : array();
+		$summaries          = array();
+
+		foreach ( $template_variables as $template_name => $variables ) {
+			$language       = BWFCO_Bouncer::get_template_language( $template_name );
+			$template_value = $template_name . '|' . $language;
+			$html           = '<strong>' . esc_html( sprintf( __( 'Template variables for %s', 'autonami-automations-connectors' ), $template_name ) ) . '</strong>';
+
+			if ( empty( $variables ) || ! is_array( $variables ) ) {
+				$summaries[ $template_value ] = $html . '<br />' . esc_html__( 'This template has no configured variables.', 'autonami-automations-connectors' );
+				continue;
+			}
+
+			ksort( $variables, SORT_NUMERIC );
+			$html .= '<ul style="margin:8px 0 0 18px; list-style:disc;">';
+			foreach ( $variables as $index => $placeholder ) {
+				$html .= '<li>' . esc_html( '{{' . absint( $index ) . '}}' ) . ' &rarr; ' . esc_html( $placeholder ) . '</li>';
+			}
+			$html .= '</ul>';
+
+			$summaries[ $template_value ] = $html;
+		}
+
+		return $summaries;
 	}
 }
 
