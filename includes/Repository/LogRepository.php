@@ -171,6 +171,17 @@ class LogRepository {
             $by_status[ $status ] = (int) $row['total'];
         }
 
+        $response_success = (int) $this->db->get_var(
+            "SELECT COUNT(*) FROM {$table} WHERE status NOT IN ('success', 'sent') AND response_code = 200 AND (response_body LIKE '%\"success\":true%' OR response_body LIKE '%\"success\": true%')"
+        );
+
+        if ( $response_success > 0 ) {
+            $by_status['success'] = (int) ( $by_status['success'] ?? 0 ) + $response_success;
+            if ( isset( $by_status['failed'] ) ) {
+                $by_status['failed'] = max( 0, (int) $by_status['failed'] - $response_success );
+            }
+        }
+
         return [
             'total'     => $total,
             'by_status' => $by_status,

@@ -88,7 +88,7 @@ class MessageSender {
 
         $response = $this->api_client->send_text( $phone, $message, $instance );
 
-        $status        = $response['success'] ? 'sent' : 'failed';
+        $status        = $response['success'] ? 'success' : 'failed';
         $response_code = (int) ( $response['response_code'] ?? 0 );
         $response_body = (string) ( $response['response_body'] ?? '' );
 
@@ -159,7 +159,7 @@ class MessageSender {
 
         $response = $this->api_client->send_cloud_template( $phone, $template_name, $variables, $instance, $language );
 
-        $status        = $response['success'] ? 'sent' : 'failed';
+        $status        = $response['success'] ? 'success' : 'failed';
         $response_code = (int) ( $response['response_code'] ?? 0 );
         $response_body = (string) ( $response['response_body'] ?? '' );
 

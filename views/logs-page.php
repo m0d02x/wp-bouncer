@@ -4,7 +4,7 @@
 /** @var string $table_name */
 /** @var string $filter */
 /** @var array $counts */
-$success_logs = (int) ( $stats['by_status']['success'] ?? 0 );
+$success_logs = (int) ( $stats['by_status']['success'] ?? 0 ) + (int) ( $stats['by_status']['sent'] ?? 0 );
 $failed_logs  = max( 0, $total_logs - $success_logs );
 $base_url     = admin_url( 'admin.php?page=wc-bouncer-whatsapp-logs' );
 $filter_url   = function ( string $type ) use ( $base_url ) {
@@ -22,6 +22,19 @@ $filter_pills = [
     'message' => __( 'WhatsApp messages', 'wc-bouncer-whatsapp' ),
     'webhook' => __( 'Webhooks', 'wc-bouncer-whatsapp' ),
 ];
+$response_is_success = function ( array $log ): bool {
+    if ( in_array( $log['status'], [ 'success', 'sent' ], true ) ) {
+        return true;
+    }
+
+    if ( 200 !== (int) ( $log['response_code'] ?? 0 ) || empty( $log['response_body'] ) ) {
+        return false;
+    }
+
+    $response = json_decode( (string) $log['response_body'], true );
+
+    return is_array( $response ) && true === ( $response['success'] ?? false );
+};
 ?>
 <div class="bouncer-admin-wrap">
     <!-- Page Header -->
@@ -137,18 +150,23 @@ $filter_pills = [
                     <?php foreach ( $logs as $log ) :
                         $gmt       = $log['created_at'];
                         $timestamp = get_date_from_gmt( $gmt, 'M j, H:i' );
-                        $is_success = 'success' === $log['status'];
+                        $is_success = $response_is_success( $log );
+                        $display_phone = (string) $log['phone'];
                     ?>
                         <tr>
                             <td>
                                 <span style="color: #6b7280; font-size: 12px;"><?php echo esc_html( $timestamp ); ?></span>
                             </td>
                             <td>
-                                <a href="<?php echo esc_url( admin_url( 'post.php?post=' . $log['order_id'] . '&action=edit' ) ); ?>" class="bouncer-order-link">
-                                    #<?php echo esc_html( $log['order_id'] ); ?>
-                                </a>
+                                <?php if ( ! empty( $log['order_id'] ) ) : ?>
+                                    <a href="<?php echo esc_url( admin_url( 'post.php?post=' . $log['order_id'] . '&action=edit' ) ); ?>" class="bouncer-order-link">
+                                        #<?php echo esc_html( $log['order_id'] ); ?>
+                                    </a>
+                                <?php else : ?>
+                                    <span style="color: #9ca3af;" title="<?php esc_attr_e( 'Abandoned cart (no order)', 'wc-bouncer-whatsapp' ); ?>">—</span>
+                                <?php endif; ?>
                             </td>
-                            <td><code><?php echo esc_html( $log['phone'] ); ?></code></td>
+                            <td><code><?php echo esc_html( $display_phone ); ?></code></td>
                             <td>
                                 <?php if ( $is_success ) : ?>
                                     <span class="bouncer-log-status success">
