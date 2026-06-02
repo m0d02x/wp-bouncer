@@ -84,7 +84,7 @@ class WFCO_Bouncer_Base_Log {
 			$logger->record(
 				self::get_order_id( $data ),
 				self::get_phone( $data ),
-				self::get_message( $data, $label ),
+				self::get_message( $data, $label, $response ),
 				self::is_success( $response ) ? 'success' : 'failed',
 				self::get_response_code( $response ),
 				self::get_response_body( $response )
@@ -131,7 +131,12 @@ class WFCO_Bouncer_Base_Log {
 		return '';
 	}
 
-	private static function get_message( $data, $label ) {
+	private static function get_message( $data, $label, $response = null ) {
+		$rendered_content = self::get_rendered_content( $response );
+		if ( '' !== $rendered_content ) {
+			return $rendered_content;
+		}
+
 		if ( ! empty( $data['template_name'] ) ) {
 			return sprintf( '[FunnelKit] Template: %s', $data['template_name'] );
 		}
@@ -141,6 +146,15 @@ class WFCO_Bouncer_Base_Log {
 		}
 
 		return '[FunnelKit] ' . ( ! empty( $data['sms_body'] ) ? $data['sms_body'] : $label );
+	}
+
+	private static function get_rendered_content( $response ) {
+		$body = is_array( $response ) && array_key_exists( 'body', $response ) ? $response['body'] : null;
+		if ( is_array( $body ) && ! empty( $body['renderedContent'] ) && is_string( $body['renderedContent'] ) ) {
+			return $body['renderedContent'];
+		}
+
+		return '';
 	}
 
 	private static function is_success( $response ) {
