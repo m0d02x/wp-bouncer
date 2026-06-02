@@ -628,6 +628,10 @@ $has_instance = ! empty( $settings['instance_id'] );
                     <input type="hidden" name="wc_bouncer_action" value="send_test" />
                     <input type="hidden" name="test_type" value="cloud-api" />
 
+                    <p class="bouncer-form-description" style="margin-top: 0;">
+                        <?php esc_html_e( 'Send an approved WhatsApp template to a recent order billing phone using the variable mappings configured in the Templates tab.', 'wc-bouncer-whatsapp' ); ?>
+                    </p>
+
                     <div class="bouncer-form-group">
                         <label class="bouncer-form-label" for="test_template">
                             <?php esc_html_e( 'Message Template', 'wc-bouncer-whatsapp' ); ?>
@@ -638,8 +642,14 @@ $has_instance = ! empty( $settings['instance_id'] );
                         </select>
                         <input type="hidden" name="test_template_language" id="test_template_language" value="" />
                         <p class="bouncer-form-description">
-                            <?php esc_html_e( 'Only templates with configured variable mappings are shown.', 'wc-bouncer-whatsapp' ); ?>
+                            <?php esc_html_e( 'Approved templates are shown here. Variable values are resolved from the selected order using mappings from the Templates tab.', 'wc-bouncer-whatsapp' ); ?>
                         </p>
+                        <div id="test_no_templates" class="bouncer-alert bouncer-alert-info" style="display: none; margin-top: 12px;">
+                            <span class="dashicons dashicons-info"></span>
+                            <div class="bouncer-alert-content">
+                                <?php esc_html_e( 'No approved templates were found. Refresh templates in the Connection tab, then return here to send a test.', 'wc-bouncer-whatsapp' ); ?>
+                            </div>
+                        </div>
                         <div id="test_template_loading" class="bouncer-loading-overlay" style="display: none; justify-content: flex-start; padding: 12px 0;">
                             <span class="bouncer-spinner"></span>
                             <span><?php esc_html_e( 'Loading templates...', 'wc-bouncer-whatsapp' ); ?></span>
@@ -684,9 +694,9 @@ $has_instance = ! empty( $settings['instance_id'] );
                     </div>
 
                     <div class="bouncer-form-actions">
-                        <button type="submit" class="bouncer-btn bouncer-btn-primary">
+                        <button type="submit" id="send_test_template_btn" class="bouncer-btn bouncer-btn-primary">
                             <span class="dashicons dashicons-email-alt"></span>
-                            <?php esc_html_e( 'Send Template', 'wc-bouncer-whatsapp' ); ?>
+                            <?php esc_html_e( 'Send Test Template', 'wc-bouncer-whatsapp' ); ?>
                         </button>
                     </div>
                 </form>
@@ -1188,6 +1198,8 @@ $has_instance = ! empty( $settings['instance_id'] );
     var testInstanceTypeBadge = $('#test_instance_type_badge');
     var testTemplateSelect = $('#test_template');
     var testTemplateLoading = $('#test_template_loading');
+    var testNoTemplates = $('#test_no_templates');
+    var sendTestTemplateBtn = $('#send_test_template_btn');
     var testOrderSelect = $('#test_order');
     var testOrderPhoneInfo = $('#test_order_phone_info');
     var testOrderPhoneDisplay = $('#test_order_phone_display');
@@ -1254,6 +1266,9 @@ $has_instance = ! empty( $settings['instance_id'] );
 
         if (!apiKey || !instanceId) return;
 
+        testNoTemplates.hide();
+        sendTestTemplateBtn.prop('disabled', true);
+
         // If we already have templates from connection tab, use those
         if (templatesData.length > 0) {
             populateTestTemplateSelect(templatesData);
@@ -1279,20 +1294,25 @@ $has_instance = ! empty( $settings['instance_id'] );
                 if (response.success && response.data.templates) {
                     templatesData = response.data.templates;
                     populateTestTemplateSelect(templatesData);
+                } else {
+                    testNoTemplates.show();
                 }
             },
             error: function() {
                 testTemplateLoading.hide();
                 testTemplateSelect.prop('disabled', false);
+                testNoTemplates.show();
             }
         });
     }
 
     function populateTestTemplateSelect(templates) {
         testTemplateSelect.find('option:not(:first)').remove();
+        var approvedCount = 0;
 
         templates.forEach(function(tpl) {
             if (tpl.status === 'APPROVED') {
+                approvedCount++;
                 var label = tpl.name;
                 if (tpl.language) label += ' (' + tpl.language + ')';
                 var option = $('<option></option>')
@@ -1302,6 +1322,9 @@ $has_instance = ! empty( $settings['instance_id'] );
                 testTemplateSelect.append(option);
             }
         });
+
+        testNoTemplates.toggle(approvedCount === 0);
+        sendTestTemplateBtn.prop('disabled', approvedCount === 0);
     }
 
     // Update language hidden field when template is selected
