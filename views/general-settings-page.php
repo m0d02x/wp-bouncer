@@ -15,6 +15,9 @@ $has_instance = ! empty( $settings['instance_id'] );
     <div class="bouncer-page-header">
         <h1 class="bouncer-page-title">
             Bouncer WhatsApp
+            <span class="bouncer-version-badge">
+                <?php echo esc_html( 'v' . WC_BOUNCER_WHATSAPP_VERSION ); ?>
+            </span>
             <?php if ( $has_api_key && $has_instance ) : ?>
                 <span class="bouncer-status-badge connected">
                     <span class="dashicons dashicons-yes-alt"></span>
