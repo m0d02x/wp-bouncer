@@ -457,6 +457,10 @@ class BWFAN_Bouncer_Send_Group extends BWFAN_Action {
 
 		$call_class->set_data( $this->data );
 		$response = $call_class->process();
+		if ( class_exists( 'WFCO_Bouncer_Base_Log', false ) ) {
+			WFCO_Bouncer_Base_Log::record( $this->data, $response, 'Group' );
+		}
+
 		if ( is_array( $response ) && 200 === $response['response'] && ( isset( $response['body']['success'] ) && $response['body']['success'] === true ) ) {
 			$this->progress = false;
 
@@ -585,6 +589,9 @@ class BWFAN_Bouncer_Send_Group extends BWFAN_Action {
 
 	public function handle_response_v2( $response ) {
 		do_action( 'bwfan_sendsms_action_response', $response, $this->data );
+		if ( class_exists( 'WFCO_Bouncer_Base_Log', false ) ) {
+			WFCO_Bouncer_Base_Log::record( $this->data, $response, 'Group' );
+		}
 
 		if ( is_array( $response ) && 200 === $response['response'] && ( isset( $response['body']['success'] ) && $response['body']['success'] === true ) ) {
 			$this->progress = false;

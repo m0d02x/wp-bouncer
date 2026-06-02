@@ -9,6 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+if ( ! class_exists( 'WFCO_Bouncer_Debug', false ) ) {
 class WFCO_Bouncer_Debug {
 
 	private static $log_file = null;
@@ -61,6 +62,88 @@ class WFCO_Bouncer_Debug {
 		}
 	}
 }
+}
+
+class WFCO_Bouncer_Base_Log {
+
+	public static function record( $data, $response, $label = 'Message' ) {
+		if ( ! class_exists( '\\Bouncer\\WooCommerce\\WhatsApp\\Service\\Logger' ) || ! class_exists( '\\Bouncer\\WooCommerce\\WhatsApp\\Repository\\LogRepository' ) ) {
+			return;
+		}
+
+		global $wpdb;
+		if ( ! $wpdb ) {
+			return;
+		}
+
+		try {
+			$logger = new \Bouncer\WooCommerce\WhatsApp\Service\Logger(
+				new \Bouncer\WooCommerce\WhatsApp\Repository\LogRepository( $wpdb )
+			);
+
+			$logger->record(
+				self::get_order_id( $data ),
+				self::get_phone( $data ),
+				self::get_message( $data, $label ),
+				self::is_success( $response ) ? 'sent' : 'failed',
+				self::get_response_code( $response ),
+				self::get_response_body( $response )
+			);
+		} catch ( \Throwable $exception ) {
+			WFCO_Bouncer_Debug::log( 'Base log bridge failed', array( 'message' => $exception->getMessage() ) );
+		}
+	}
+
+	private static function get_order_id( $data ) {
+		return ! empty( $data['order_id'] ) ? absint( $data['order_id'] ) : 0;
+	}
+
+	private static function get_phone( $data ) {
+		if ( ! empty( $data['number'] ) ) {
+			return (string) $data['number'];
+		}
+
+		if ( ! empty( $data['phone'] ) ) {
+			return (string) $data['phone'];
+		}
+
+		return '';
+	}
+
+	private static function get_message( $data, $label ) {
+		if ( ! empty( $data['template_name'] ) ) {
+			return sprintf( '[FunnelKit] Template: %s', $data['template_name'] );
+		}
+
+		if ( 'Group' === $label ) {
+			return '[FunnelKit] Group: ' . ( ! empty( $data['sms_body'] ) ? $data['sms_body'] : $label );
+		}
+
+		return '[FunnelKit] ' . ( ! empty( $data['sms_body'] ) ? $data['sms_body'] : $label );
+	}
+
+	private static function is_success( $response ) {
+		$response_code = is_array( $response ) && isset( $response['response'] ) ? (int) $response['response'] : 0;
+
+		return is_array( $response ) && 200 === $response_code && isset( $response['body']['success'] ) && true === $response['body']['success'];
+	}
+
+	private static function get_response_code( $response ) {
+		return is_array( $response ) && isset( $response['response'] ) ? (int) $response['response'] : 0;
+	}
+
+	private static function get_response_body( $response ) {
+		$body = is_array( $response ) && array_key_exists( 'body', $response ) ? $response['body'] : $response;
+
+		if ( is_scalar( $body ) || null === $body ) {
+			return (string) $body;
+		}
+
+		return function_exists( 'wp_json_encode' ) ? wp_json_encode( $body ) : json_encode( $body );
+	}
+}
 
 // Initialize
-WFCO_Bouncer_Debug::init();
+if ( class_exists( 'WFCO_Bouncer_Debug', false ) ) {
+	WFCO_Bouncer_Debug::init();
+}

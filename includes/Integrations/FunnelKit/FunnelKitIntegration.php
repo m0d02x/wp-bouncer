@@ -136,9 +136,9 @@ class FunnelKitIntegration {
         }
     }
 
-    private function require_debug_helper(): void {
-        if ( ! class_exists( 'WFCO_Bouncer_Debug', false ) ) {
-            require_once $this->base_dir . 'includes/debug-helper.php';
-        }
-    }
+	private function require_debug_helper(): void {
+		if ( ! class_exists( 'WFCO_Bouncer_Debug', false ) || ! class_exists( 'WFCO_Bouncer_Base_Log', false ) ) {
+			require_once $this->base_dir . 'includes/debug-helper.php';
+		}
+	}
 }
