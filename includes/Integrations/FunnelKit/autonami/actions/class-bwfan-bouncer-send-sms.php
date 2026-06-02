@@ -233,6 +233,7 @@ class BWFAN_Bouncer_Send_SMS extends BWFAN_Action {
 			'promotional_sms' => ( isset( $task_meta['data']['promotional_sms'] ) ) ? 1 : 0,
 			'append_utm'      => ( isset( $task_meta['data']['sms_append_utm'] ) ) ? 1 : 0,
 			'number'          => ( isset( $task_meta['data']['sms_to'] ) ) ? BWFAN_Common::decode_merge_tags( $task_meta['data']['sms_to'] ) : '',
+			'phone'           => ( isset( $task_meta['data']['sms_to'] ) ) ? BWFAN_Common::decode_merge_tags( $task_meta['data']['sms_to'] ) : '',
 			'event'           => ( isset( $task_meta['event_data'] ) && isset( $task_meta['event_data']['event_slug'] ) ) ? $task_meta['event_data']['event_slug'] : '',
 			'type'            => $type,
 			'sms_body'        => BWFAN_Common::decode_merge_tags( $sms_body ),
@@ -405,9 +406,10 @@ class BWFAN_Bouncer_Send_SMS extends BWFAN_Action {
 		}
 
 		/** Validating promotional sms */
+		$recipient = ! empty( $this->data['phone'] ) ? $this->data['phone'] : ( $this->data['number'] ?? '' );
 		if ( 1 === absint( $this->data['promotional_sms'] ) && ( false === apply_filters( 'bwfan_force_promotional_sms', false, $this->data ) ) ) {
 			$where             = array(
-				'recipient' => $this->data['phone'],
+				'recipient' => $recipient,
 				'mode'      => 2,
 			);
 			$check_unsubscribe = BWFAN_Model_Message_Unsubscribe::get_message_unsubscribe_row( $where );

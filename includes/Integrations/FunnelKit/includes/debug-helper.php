@@ -85,7 +85,7 @@ class WFCO_Bouncer_Base_Log {
 				self::get_order_id( $data ),
 				self::get_phone( $data ),
 				self::get_message( $data, $label ),
-				self::is_success( $response ) ? 'sent' : 'failed',
+				self::is_success( $response ) ? 'success' : 'failed',
 				self::get_response_code( $response ),
 				self::get_response_body( $response )
 			);
@@ -99,12 +99,33 @@ class WFCO_Bouncer_Base_Log {
 	}
 
 	private static function get_phone( $data ) {
-		if ( ! empty( $data['number'] ) ) {
-			return (string) $data['number'];
+		$candidates = array( 'number', 'phone', 'recipient', 'to', 'mobile', 'billing_phone', 'contact_no' );
+		foreach ( $candidates as $key ) {
+			if ( ! empty( $data[ $key ] ) && is_scalar( $data[ $key ] ) ) {
+				return (string) $data[ $key ];
+			}
 		}
 
-		if ( ! empty( $data['phone'] ) ) {
-			return (string) $data['phone'];
+		// Fall back to order billing phone for WC order automations.
+		if ( ! empty( $data['order_id'] ) && function_exists( 'wc_get_order' ) ) {
+			$order = wc_get_order( absint( $data['order_id'] ) );
+			if ( $order && method_exists( $order, 'get_billing_phone' ) ) {
+				$phone = (string) $order->get_billing_phone();
+				if ( '' !== $phone ) {
+					return $phone;
+				}
+			}
+		}
+
+		// Fall back to abandoned cart checkout data when present.
+		if ( ! empty( $data['cart_abandoned_id'] ) && class_exists( 'BWFAN_Merge_Tag_Loader' ) ) {
+			$cart_details = BWFAN_Merge_Tag_Loader::get_data( 'cart_details' );
+			if ( is_array( $cart_details ) && ! empty( $cart_details['checkout_data'] ) ) {
+				$checkout = json_decode( (string) $cart_details['checkout_data'], true );
+				if ( is_array( $checkout ) && isset( $checkout['fields']['billing_phone'] ) && '' !== $checkout['fields']['billing_phone'] ) {
+					return (string) $checkout['fields']['billing_phone'];
+				}
+			}
 		}
 
 		return '';
