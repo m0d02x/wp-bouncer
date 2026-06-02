@@ -26,9 +26,9 @@ class BWFAN_Bouncer_Send_Template extends BWFAN_Bouncer_Send_SMS {
 	}
 
 	public function get_view() {
-		$unique_slug      = $this->get_slug();
-		$template_options = $this->get_template_options();
-		$variable_summaries = $this->get_template_variable_summaries();
+		$unique_slug        = $this->get_slug();
+		$template_options   = $this->get_template_options();
+		$variable_summaries = $this->get_template_variable_summaries( $template_options );
 		?>
         <script type="text/html" id="tmpl-action-<?php echo esc_attr__( $unique_slug ); ?>">
             <#
@@ -42,9 +42,9 @@ class BWFAN_Bouncer_Send_Template extends BWFAN_Bouncer_Send_SMS {
                     <input required type="text" class="bwfan-input-wrapper bwfan-field-<?php echo esc_attr__( $unique_slug ); ?>" name="bwfan[{{data.action_id}}][data][sms_to]" placeholder="E.g. 919999999999" value="{{sms_to}}"/>
                 </div>
 
-				<?php if ( empty( $template_options ) ) : ?>
+		<?php if ( empty( $template_options ) ) : ?>
                     <div class="bwfan-col-sm-12 bwfan-pl-0 bwfan-pr-0 bwfan-mb-15">
-                        <p class="bwfan_field_desc"><?php esc_html_e( 'Cloud API mode is active. Configure approved WhatsApp templates and variable mappings in Bouncer WhatsApp settings before using this action.', 'autonami-automations-connectors' ); ?></p>
+						<p class="bwfan_field_desc"><?php esc_html_e( 'Cloud API mode is active, but no approved WhatsApp templates were found. Refresh templates in Bouncer WhatsApp settings before using this action.', 'autonami-automations-connectors' ); ?></p>
                     </div>
 				<?php else : ?>
                     <label for="" class="bwfan-label-title"><?php esc_html_e( 'WhatsApp Template', 'autonami-automations-connectors' ); ?></label>
@@ -108,7 +108,7 @@ class BWFAN_Bouncer_Send_Template extends BWFAN_Bouncer_Send_SMS {
 				'type'    => 'notice',
 				'class'   => '',
 				'status'  => 'error',
-				'message' => __( 'Cloud API mode is active, but no approved templates are configured in Bouncer WhatsApp settings. Add templates and variable mappings there before using this action.', 'autonami-automations-connectors' ),
+				'message' => __( 'Cloud API mode is active, but no approved templates were found. Refresh templates in Bouncer WhatsApp settings before using this action.', 'autonami-automations-connectors' ),
 				'dismiss' => false,
 			);
 		} else {
@@ -122,7 +122,7 @@ class BWFAN_Bouncer_Send_Template extends BWFAN_Bouncer_Send_SMS {
 				'description' => __( 'Cloud API requires pre-approved templates from Meta.', 'autonami-automations-connectors' ),
 				'required'    => true,
 			);
-			foreach ( $this->get_template_variable_summaries() as $template_value => $summary ) {
+			foreach ( $this->get_template_variable_summaries( $template_options ) as $template_value => $summary ) {
 				$fields[] = array(
 					'id'      => 'cloud_template_variables_' . md5( $template_value ),
 					'type'    => 'notice',
@@ -165,33 +165,69 @@ class BWFAN_Bouncer_Send_Template extends BWFAN_Bouncer_Send_SMS {
 	}
 
 	private function get_template_options() {
-		$cloud_config       = BWFCO_Bouncer::get_cloud_template_config();
-		$template_variables = isset( $cloud_config['template_variables'] ) && is_array( $cloud_config['template_variables'] ) ? $cloud_config['template_variables'] : array();
-		$template_options   = array();
+		$cloud_config     = BWFCO_Bouncer::get_cloud_template_config();
+		$template_options = array();
 
-		foreach ( array_keys( $template_variables ) as $template_name ) {
-			$language           = BWFCO_Bouncer::get_template_language( $template_name );
-			$template_options[] = array(
+		foreach ( BWFCO_Bouncer::fetch_cloud_templates() as $template ) {
+			if ( empty( $template['name'] ) ) {
+				continue;
+			}
+
+			if ( isset( $template['status'] ) && 'APPROVED' !== strtoupper( $template['status'] ) ) {
+				continue;
+			}
+
+			$language = ! empty( $template['language'] ) ? $template['language'] : BWFCO_Bouncer::get_template_language( $template['name'] );
+			$template_options[ $template['name'] . '|' . $language ] = array(
+				'label' => $template['name'] . ' (' . $language . ')',
+				'value' => $template['name'] . '|' . $language,
+			);
+		}
+
+		foreach ( $this->get_saved_template_names( $cloud_config ) as $template_name ) {
+			$language = BWFCO_Bouncer::get_template_language( $template_name );
+			$template_options[ $template_name . '|' . $language ] = array(
 				'label' => $template_name . ' (' . $language . ')',
 				'value' => $template_name . '|' . $language,
 			);
 		}
 
-		return $template_options;
+		return array_values( $template_options );
 	}
 
-	private function get_template_variable_summaries() {
+	private function get_saved_template_names( $cloud_config ) {
+		$template_names = array();
+
+		foreach ( array( 'template_variables', 'template_languages', 'status_template_map' ) as $config_key ) {
+			if ( empty( $cloud_config[ $config_key ] ) || ! is_array( $cloud_config[ $config_key ] ) ) {
+				continue;
+			}
+
+			$names = 'status_template_map' === $config_key ? array_values( $cloud_config[ $config_key ] ) : array_keys( $cloud_config[ $config_key ] );
+			foreach ( $names as $template_name ) {
+				if ( is_scalar( $template_name ) && '' !== trim( (string) $template_name ) ) {
+					$template_names[] = (string) $template_name;
+				}
+			}
+		}
+
+		return array_values( array_unique( $template_names ) );
+	}
+
+	private function get_template_variable_summaries( $template_options ) {
 		$cloud_config       = BWFCO_Bouncer::get_cloud_template_config();
 		$template_variables = isset( $cloud_config['template_variables'] ) && is_array( $cloud_config['template_variables'] ) ? $cloud_config['template_variables'] : array();
 		$summaries          = array();
 
-		foreach ( $template_variables as $template_name => $variables ) {
-			$language       = BWFCO_Bouncer::get_template_language( $template_name );
-			$template_value = $template_name . '|' . $language;
+		foreach ( $template_options as $template_option ) {
+			$template_value = $template_option['value'];
+			$parts          = explode( '|', $template_value, 2 );
+			$template_name  = $parts[0];
+			$variables      = isset( $template_variables[ $template_name ] ) ? $template_variables[ $template_name ] : array();
 			$html           = '<strong>' . esc_html( sprintf( __( 'Template variables for %s', 'autonami-automations-connectors' ), $template_name ) ) . '</strong>';
 
 			if ( empty( $variables ) || ! is_array( $variables ) ) {
-				$summaries[ $template_value ] = $html . '<br />' . esc_html__( 'This template has no configured variables.', 'autonami-automations-connectors' );
+				$summaries[ $template_value ] = $html . '<br />' . esc_html__( 'No variable mappings are configured for this template in Bouncer WhatsApp settings.', 'autonami-automations-connectors' );
 				continue;
 			}
 
