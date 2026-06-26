@@ -40,6 +40,47 @@ class CartBountySender {
         }
     }
 
+    /**
+     * Preview due carts across all enabled steps — for admin UI display.
+     * Returns cart details (name, phone, total, step) without sending.
+     *
+     * @return array<int, array{id:int, name:string, phone:string, cart_total:string, currency:string, step:int, time:string}>
+     */
+    public function get_due_cart_preview( int $limit = 25 ): array {
+        $preview = [];
+
+        if ( ! $this->repository->is_available() ) {
+            return $preview;
+        }
+
+        $steps = (array) $this->settings->get( 'cartbounty_steps', [] );
+
+        foreach ( $steps as $step ) {
+            $step  = (int) $step;
+            $carts = $this->repository->find_due_carts_for_step( $step, $limit );
+
+            foreach ( $carts as $cart ) {
+                $cart_id = (int) ( $cart['id'] ?? 0 );
+
+                if ( $cart_id <= 0 || $this->was_sent( $cart_id, $step ) ) {
+                    continue;
+                }
+
+                $preview[] = [
+                    'id'         => $cart_id,
+                    'name'       => trim( (string) ( $cart['name'] ?? '' ) . ' ' . (string) ( $cart['surname'] ?? '' ) ),
+                    'phone'      => (string) ( $cart['phone'] ?? '' ),
+                    'cart_total' => (string) ( $cart['cart_total'] ?? '' ),
+                    'currency'   => (string) ( $cart['currency'] ?? '' ),
+                    'step'       => $step,
+                    'time'       => (string) ( $cart['time'] ?? '' ),
+                ];
+            }
+        }
+
+        return $preview;
+    }
+
     public function run_sweep( bool $dry_run = false ): array {
         $result = [
             'sent'    => [],

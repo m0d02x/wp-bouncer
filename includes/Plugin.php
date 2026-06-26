@@ -54,7 +54,7 @@ class Plugin {
 
         $abandoned_dispatcher        = new AbandonedWebhookDispatcher( $logger );
         $this->abandoned_scanner     = new AbandonedOrdersScanner( $this->settings, $abandoned_dispatcher );
-        $this->abandoned_orders_page = new AbandonedOrdersPage( $this->abandoned_scanner, $this->settings );
+        $this->abandoned_orders_page = new AbandonedOrdersPage( $this->abandoned_scanner, $this->settings, $this->cartbounty_sender );
         $this->event_sync            = new EventSync( $this->settings, $api_client );
         $this->funnelkit_integration = new FunnelKitIntegration( $this->settings );
 

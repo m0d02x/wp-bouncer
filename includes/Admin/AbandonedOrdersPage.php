@@ -3,6 +3,7 @@
 namespace Bouncer\WooCommerce\WhatsApp\Admin;
 
 use Bouncer\WooCommerce\WhatsApp\Service\AbandonedOrdersScanner;
+use Bouncer\WooCommerce\WhatsApp\Service\CartBounty\CartBountySender;
 use Bouncer\WooCommerce\WhatsApp\Settings\Settings;
 
 class AbandonedOrdersPage {
@@ -10,11 +11,13 @@ class AbandonedOrdersPage {
 
     private AbandonedOrdersScanner $scanner;
     private Settings $settings;
+    private CartBountySender $cartbounty_sender;
     private array $state = [];
 
-    public function __construct( AbandonedOrdersScanner $scanner, Settings $settings ) {
-        $this->scanner = $scanner;
-        $this->settings = $settings;
+    public function __construct( AbandonedOrdersScanner $scanner, Settings $settings, CartBountySender $cartbounty_sender ) {
+        $this->scanner           = $scanner;
+        $this->settings          = $settings;
+        $this->cartbounty_sender = $cartbounty_sender;
     }
 
     public function register(): void {
@@ -145,8 +148,10 @@ class AbandonedOrdersPage {
         check_admin_referer( 'wc_bouncer_abandoned_sweep' );
 
         $this->state['sweep_result'] = [
-            'dry_run' => $dry_run,
-            'result'  => $this->scanner->run_sweep( $dry_run ),
+            'dry_run'           => $dry_run,
+            'result'            => $this->scanner->run_sweep( $dry_run ),
+            'cartbounty_result' => $this->cartbounty_sender->run_sweep( $dry_run ),
+            'cartbounty_preview' => $this->cartbounty_sender->get_due_cart_preview(),
         ];
         $this->state['active_tab'] = 'sweep';
     }

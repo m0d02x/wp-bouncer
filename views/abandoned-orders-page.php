@@ -506,12 +506,92 @@ $is_enabled = ! empty( $config['enabled'] );
                             </table>
                         <?php endif; ?>
                     </div>
+
+                    <?php
+                    $cb_result   = $sweep_result['cartbounty_result'] ?? null;
+                    $cb_preview  = $sweep_result['cartbounty_preview'] ?? [];
+                    if ( $cb_result ) :
+                        $cb_skipped = ! empty( $cb_result['skipped'] ) ? $cb_result['skipped'] : '';
+                        $cb_sent    = (array) ( $cb_result['sent'] ?? [] );
+                        $cb_errors  = (array) ( $cb_result['errors'] ?? [] );
+                        ?>
+                        <div class="bouncer-divider" style="margin: 20px 0;"></div>
+                        <div class="bouncer-section-title" style="margin-bottom: 8px;">
+                            <?php esc_html_e( 'CartBounty Abandoned Carts', 'wc-bouncer-whatsapp' ); ?>
+                        </div>
+
+                        <?php if ( '' !== $cb_skipped ) : ?>
+                            <div class="bouncer-alert bouncer-alert-info" style="margin: 0;">
+                                <span class="dashicons dashicons-info"></span>
+                                <div class="bouncer-alert-content">
+                                    <?php
+                                    $cb_messages = [
+                                        'disabled'             => __( 'CartBounty integration is disabled. Enable it in Integrations tab.', 'wc-bouncer-whatsapp' ),
+                                        'cartbounty_unavailable' => __( 'CartBounty table not found. Install and activate CartBounty plugin.', 'wc-bouncer-whatsapp' ),
+                                        'missing_api_key'      => __( 'Bouncer API key is not configured.', 'wc-bouncer-whatsapp' ),
+                                    ];
+                                    echo esc_html( $cb_messages[ $cb_skipped ] ?? $cb_skipped );
+                                    ?>
+                                </div>
+                            </div>
+                        <?php elseif ( ! empty( $cb_preview ) ) : ?>
+                            <table class="bouncer-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60px;">ID</th>
+                                        <th><?php esc_html_e( 'Customer', 'wc-bouncer-whatsapp' ); ?></th>
+                                        <th><?php esc_html_e( 'Phone', 'wc-bouncer-whatsapp' ); ?></th>
+                                        <th style="width: 80px;"><?php esc_html_e( 'Step', 'wc-bouncer-whatsapp' ); ?></th>
+                                        <th><?php esc_html_e( 'Cart Total', 'wc-bouncer-whatsapp' ); ?></th>
+                                        <th><?php esc_html_e( 'Abandoned', 'wc-bouncer-whatsapp' ); ?></th>
+                                        <th style="width: 100px;"><?php esc_html_e( 'Status', 'wc-bouncer-whatsapp' ); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ( $cb_preview as $cb_cart ) :
+                                        $is_sent = in_array( (int) $cb_cart['id'], array_map( 'intval', $cb_sent ), true );
+                                        ?>
+                                        <tr>
+                                            <td>#<?php echo esc_html( (string) $cb_cart['id'] ); ?></td>
+                                            <td><?php echo esc_html( $cb_cart['name'] ?: '—' ); ?></td>
+                                            <td><?php echo esc_html( $cb_cart['phone'] ?: '—' ); ?></td>
+                                            <td><?php echo esc_html( (string) $cb_cart['step'] ); ?></td>
+                                            <td><?php echo esc_html( $cb_cart['cart_total'] . ' ' . $cb_cart['currency'] ); ?></td>
+                                            <td><?php echo esc_html( $cb_cart['time'] ); ?></td>
+                                            <td>
+                                                <?php if ( $dry ) : ?>
+                                                    <span class="bouncer-status-badge" style="font-size: 11px; background: #fef3c7; color: #92400e;">
+                                                        <?php esc_html_e( 'Candidate', 'wc-bouncer-whatsapp' ); ?>
+                                                    </span>
+                                                <?php elseif ( $is_sent ) : ?>
+                                                    <span class="bouncer-status-badge" style="font-size: 11px; background: #d1fae5; color: #065f46;">
+                                                        <?php esc_html_e( 'Sent', 'wc-bouncer-whatsapp' ); ?>
+                                                    </span>
+                                                <?php else : ?>
+                                                    <span class="bouncer-status-badge" style="font-size: 11px; background: #fee2e2; color: #991b1b;">
+                                                        <?php esc_html_e( 'Error', 'wc-bouncer-whatsapp' ); ?>
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php else : ?>
+                            <div class="bouncer-alert bouncer-alert-info" style="margin: 0;">
+                                <span class="dashicons dashicons-info"></span>
+                                <div class="bouncer-alert-content">
+                                    <?php echo $dry
+                                        ? esc_html__( 'No CartBounty carts due for WhatsApp messages.', 'wc-bouncer-whatsapp' )
+                                        : esc_html__( 'No CartBounty carts were sent (none due or already sent).', 'wc-bouncer-whatsapp' ); ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
     </div>
-
-    <!-- Test Webhook Tab -->
     <div id="test" class="bouncer-tab-content <?php echo 'test' === $active_tab ? 'active' : ''; ?>">
         <div class="bouncer-card">
             <div class="bouncer-card-header">
