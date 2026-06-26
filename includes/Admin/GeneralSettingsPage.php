@@ -2,6 +2,7 @@
 
 namespace Bouncer\WooCommerce\WhatsApp\Admin;
 
+use Bouncer\WooCommerce\WhatsApp\Infrastructure\GithubUpdater;
 use Bouncer\WooCommerce\WhatsApp\Service\ApiClient;
 use Bouncer\WooCommerce\WhatsApp\Service\LoggerInterface;
 use Bouncer\WooCommerce\WhatsApp\Service\MetaKeyDiscovery;
@@ -17,6 +18,7 @@ class GeneralSettingsPage {
     private PlaceholderResolver $resolver;
     private MetaKeyDiscovery $meta_discovery;
     private LoggerInterface $logger;
+    private ?GithubUpdater $updater = null;
     private array $state = [];
 
     public function __construct( Settings $settings, ApiClient $api_client, PlaceholderResolver $resolver, MetaKeyDiscovery $meta_discovery, LoggerInterface $logger ) {
@@ -25,6 +27,10 @@ class GeneralSettingsPage {
         $this->resolver       = $resolver;
         $this->meta_discovery = $meta_discovery;
         $this->logger         = $logger;
+    }
+
+    public function set_updater( GithubUpdater $updater ): void {
+        $this->updater = $updater;
     }
 
     public function register(): void {
@@ -289,6 +295,7 @@ class GeneralSettingsPage {
         $preview        = $this->state['preview'] ?? null;
         $test_result    = $this->state['test_result'] ?? null;
         $health_result  = $this->state['health_result'] ?? null;
+        $update_check   = $this->state['update_check'] ?? null;
         $discovered_meta_keys = $this->meta_discovery->discover( 50 );
         $cartbounty_status    = $this->get_cartbounty_status();
 
@@ -341,6 +348,9 @@ class GeneralSettingsPage {
             case 'save_integrations':
                 $this->handle_save_integrations();
                 break;
+            case 'check_updates':
+                $this->handle_check_updates();
+                break;
         }
     }
 
@@ -362,6 +372,41 @@ class GeneralSettingsPage {
         $redirect .= '#integrations';
         wp_safe_redirect( $redirect );
         exit;
+    }
+
+    private function handle_check_updates(): void {
+        check_admin_referer( 'wc_bouncer_check_updates' );
+
+        if ( $this->updater ) {
+            $this->updater->clear_cache();
+
+            // Force WordPress to re-check plugin updates immediately.
+            if ( function_exists( 'wp_update_plugins' ) ) {
+                wp_update_plugins();
+            }
+
+            $release = $this->updater->get_release_info();
+
+            if ( $release ) {
+                $remote_version   = ltrim( $release['version'], 'vV' );
+                $current_version  = WC_BOUNCER_WHATSAPP_VERSION;
+                $update_available = version_compare( $remote_version, $current_version, '>' );
+
+                $this->state['update_check'] = [
+                    'checked'         => true,
+                    'current_version' => $current_version,
+                    'latest_version'  => $remote_version,
+                    'update_available'=> $update_available,
+                    'info_url'        => $release['info_url'],
+                    'published_at'    => $release['published_at'],
+                ];
+            } else {
+                $this->state['update_check'] = [
+                    'checked'  => true,
+                    'error'    => __( 'Could not reach GitHub. Check your connection and try again.', 'wc-bouncer-whatsapp' ),
+                ];
+            }
+        }
     }
 
     private function handle_save_templates(): void {

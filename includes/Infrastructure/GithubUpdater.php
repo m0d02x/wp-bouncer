@@ -45,6 +45,24 @@ class GithubUpdater {
 	}
 
 	/**
+	 * Clear the cached release data so the next check hits GitHub fresh.
+	 */
+	public function clear_cache(): void {
+		$cache_key = 'bouncer_github_release_' . md5( $this->repo );
+		delete_transient( $cache_key );
+		$this->release_data_cache = null;
+	}
+
+	/**
+	 * Get the latest release info (public wrapper for admin UI display).
+	 *
+	 * @return array{version:string,download_url:string,info_url:string,published_at:string,body:string}|null
+	 */
+	public function get_release_info(): ?array {
+		return $this->get_latest_release();
+	}
+
+	/**
 	 * Check the latest GitHub release and inject an update object if a newer
 	 * version is available. Runs on the WP update transient filter.
 	 *

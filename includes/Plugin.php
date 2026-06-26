@@ -36,6 +36,7 @@ class Plugin {
     private EventSync $event_sync;
     private FunnelKitIntegration $funnelkit_integration;
     private CartBountySender $cartbounty_sender;
+    private GithubUpdater $updater;
 
     public function __construct() {
         $this->settings = new Settings();
@@ -72,6 +73,10 @@ class Plugin {
         );
 
         $this->abandoned_orders_page = new AbandonedOrdersPage( $this->abandoned_scanner, $this->settings, $this->cartbounty_sender );
+
+        // GitHub self-updater (instantiated early for admin access, registered in init).
+        $this->updater = new GithubUpdater( 'm0d02x/wp-bouncer', WC_BOUNCER_WHATSAPP_PLUGIN_FILE, WC_BOUNCER_WHATSAPP_VERSION );
+        $this->general_settings_page->set_updater( $this->updater );
     }
 
     public function init(): void {
@@ -93,7 +98,7 @@ class Plugin {
 
         // GitHub self-updater (admin only, checks for new releases).
         if ( is_admin() ) {
-            ( new GithubUpdater( 'm0d02x/wp-bouncer', WC_BOUNCER_WHATSAPP_PLUGIN_FILE, WC_BOUNCER_WHATSAPP_VERSION ) )->register();
+            $this->updater->register();
         }
     }
 

@@ -934,6 +934,81 @@ $has_instance = ! empty( $settings['instance_id'] );
                     </form>
                 </div>
             </div>
+
+            <!-- Plugin Updates -->
+            <div class="bouncer-card">
+                <div class="bouncer-card-header">
+                    <h3 class="bouncer-card-title">
+                        <span class="dashicons dashicons-update"></span>
+                        <?php esc_html_e( 'Plugin Updates', 'wc-bouncer-whatsapp' ); ?>
+                    </h3>
+                </div>
+                <div class="bouncer-card-body">
+                    <p style="color: #6b7280; font-size: 13px; margin: 0 0 12px 0;">
+                        <?php esc_html_e( 'Check for new releases from GitHub. Updates install via the standard WordPress updater.', 'wc-bouncer-whatsapp' ); ?>
+                    </p>
+
+                    <p style="font-size: 13px; margin: 0 0 16px 0;">
+                        <strong><?php esc_html_e( 'Installed:', 'wc-bouncer-whatsapp' ); ?></strong>
+                        <code>v<?php echo esc_html( WC_BOUNCER_WHATSAPP_VERSION ); ?></code>
+                    </p>
+
+                    <?php if ( $update_check ) : ?>
+                        <?php if ( ! empty( $update_check['error'] ) ) : ?>
+                            <div class="bouncer-alert bouncer-alert-error" style="margin-bottom: 16px;">
+                                <span class="dashicons dashicons-dismiss"></span>
+                                <div class="bouncer-alert-content"><?php echo esc_html( $update_check['error'] ); ?></div>
+                            </div>
+                        <?php elseif ( ! empty( $update_check['update_available'] ) ) : ?>
+                            <div class="bouncer-alert bouncer-alert-warning" style="margin-bottom: 16px;">
+                                <span class="dashicons dashicons-warning"></span>
+                                <div class="bouncer-alert-content">
+                                    <strong><?php esc_html_e( 'Update available!', 'wc-bouncer-whatsapp' ); ?></strong><br />
+                                    <?php
+                                    printf(
+                                        /* translators: 1: latest version, 2: current version */
+                                        esc_html__( 'Latest release: v%1$s (you have v%2$s).', 'wc-bouncer-whatsapp' ),
+                                        esc_html( $update_check['latest_version'] ),
+                                        esc_html( $update_check['current_version'] )
+                                    );
+                                    ?>
+                                    <br />
+                                    <a href="<?php echo esc_url( $update_check['info_url'] ); ?>" target="_blank" rel="noopener">
+                                        <?php esc_html_e( 'View release notes', 'wc-bouncer-whatsapp' ); ?> →
+                                    </a>
+                                    <br />
+                                    <a href="<?php echo esc_url( admin_url( 'plugins.php' ) ); ?>">
+                                        <?php esc_html_e( 'Go to Plugins to update →', 'wc-bouncer-whatsapp' ); ?>
+                                    </a>
+                                </div>
+                            </div>
+                        <?php else : ?>
+                            <div class="bouncer-alert bouncer-alert-success" style="margin-bottom: 16px;">
+                                <span class="dashicons dashicons-yes-alt"></span>
+                                <div class="bouncer-alert-content">
+                                    <strong><?php esc_html_e( 'You are up to date.', 'wc-bouncer-whatsapp' ); ?></strong>
+                                    <?php
+                                    printf(
+                                        /* translators: %s: version number */
+                                        esc_html__( 'Latest release is v%s.', 'wc-bouncer-whatsapp' ),
+                                        esc_html( $update_check['latest_version'] )
+                                    );
+                                    ?>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+
+                    <form method="post">
+                        <?php wp_nonce_field( 'wc_bouncer_check_updates' ); ?>
+                        <input type="hidden" name="wc_bouncer_action" value="check_updates" />
+                        <button type="submit" class="bouncer-btn bouncer-btn-secondary">
+                            <span class="dashicons dashicons-update"></span>
+                            <?php esc_html_e( 'Check for Updates', 'wc-bouncer-whatsapp' ); ?>
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <?php if ( $preview && ! isset( $preview['error'] ) && ! empty( $preview['meta'] ) ) : ?>
