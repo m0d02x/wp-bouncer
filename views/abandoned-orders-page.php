@@ -210,6 +210,62 @@ $is_enabled = ! empty( $config['enabled'] );
                 </div>
             </div>
 
+            <div class="bouncer-card">
+                <div class="bouncer-card-header">
+                    <h3 class="bouncer-card-title">
+                        <span class="dashicons dashicons-cart"></span>
+                        <?php esc_html_e( 'CartBounty Polling', 'wc-bouncer-whatsapp' ); ?>
+                    </h3>
+                </div>
+                <div class="bouncer-card-body">
+                    <p class="bouncer-form-description" style="margin: 0 0 16px 0;">
+                        <?php esc_html_e( 'These controls share the same cron schedule as the abandoned orders detection above (Check frequency). CartBounty carts are polled at that interval.', 'wc-bouncer-whatsapp' ); ?>
+                    </p>
+
+                    <div class="bouncer-form-group">
+                        <label class="bouncer-inline-row" style="font-size: 13px; color: #374151;">
+                            <input type="checkbox" name="cartbounty_polling_enabled" value="1" <?php checked( ! empty( $cartbounty_settings['enabled'] ) ); ?> />
+                            <span><?php esc_html_e( 'Enable CartBounty polling', 'wc-bouncer-whatsapp' ); ?></span>
+                        </label>
+                    </div>
+
+                    <div class="bouncer-divider"></div>
+
+                    <div class="bouncer-section-title"><?php esc_html_e( 'Steps', 'wc-bouncer-whatsapp' ); ?></div>
+                    <div class="bouncer-form-group">
+                        <label class="bouncer-inline-row" style="font-size: 13px; color: #374151;">
+                            <input type="checkbox" name="cartbounty_steps[]" value="1" <?php checked( in_array( 1, $cartbounty_settings['steps'], true ) ); ?> />
+                            <span><?php esc_html_e( 'Step 1 — First reminder (mirrors first CartBounty email)', 'wc-bouncer-whatsapp' ); ?></span>
+                        </label>
+                    </div>
+                    <div class="bouncer-form-group">
+                        <label class="bouncer-inline-row" style="font-size: 13px; color: #374151;">
+                            <input type="checkbox" name="cartbounty_steps[]" value="2" <?php checked( in_array( 2, $cartbounty_settings['steps'], true ) ); ?> />
+                            <span><?php esc_html_e( 'Step 2 — Second reminder', 'wc-bouncer-whatsapp' ); ?></span>
+                        </label>
+                    </div>
+                    <div class="bouncer-form-group">
+                        <label class="bouncer-inline-row" style="font-size: 13px; color: #374151;">
+                            <input type="checkbox" name="cartbounty_steps[]" value="3" <?php checked( in_array( 3, $cartbounty_settings['steps'], true ) ); ?> />
+                            <span><?php esc_html_e( 'Step 3 — Third reminder', 'wc-bouncer-whatsapp' ); ?></span>
+                        </label>
+                    </div>
+
+                    <p class="bouncer-form-description" style="margin: 12px 0 0 0;">
+                        <?php esc_html_e( "Selected steps trigger WhatsApp messages alongside CartBounty's email automation at the same time intervals.", 'wc-bouncer-whatsapp' ); ?>
+                    </p>
+
+                    <?php if ( empty( $cartbounty_table_exists ) ) : ?>
+                        <div class="bouncer-alert bouncer-alert-warning" style="margin-top:16px;">
+                            <span class="dashicons dashicons-warning"></span>
+                            <div class="bouncer-alert-content">
+                                <?php esc_html_e( 'CartBounty plugin was not detected. Install and activate CartBounty to use polling.', 'wc-bouncer-whatsapp' ); ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
             <div class="bouncer-form-actions">
                 <button type="submit" class="bouncer-btn bouncer-btn-primary">
                     <span class="dashicons dashicons-saved"></span>

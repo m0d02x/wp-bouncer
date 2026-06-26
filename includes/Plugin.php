@@ -17,6 +17,10 @@ use Bouncer\WooCommerce\WhatsApp\Service\Logger;
 use Bouncer\WooCommerce\WhatsApp\Service\MessageSender;
 use Bouncer\WooCommerce\WhatsApp\Service\MetaKeyDiscovery;
 use Bouncer\WooCommerce\WhatsApp\Service\PlaceholderResolver;
+use Bouncer\WooCommerce\WhatsApp\Service\CartBounty\CartBountyCartRepository;
+use Bouncer\WooCommerce\WhatsApp\Service\CartBounty\CartBountyPlaceholderResolver;
+use Bouncer\WooCommerce\WhatsApp\Service\CartBounty\CartBountyPhoneNormalizer;
+use Bouncer\WooCommerce\WhatsApp\Service\CartBounty\CartBountySender;
 use Bouncer\WooCommerce\WhatsApp\Settings\Settings;
 
 class Plugin {
@@ -30,6 +34,7 @@ class Plugin {
     private AbandonedOrdersScanner $abandoned_scanner;
     private EventSync $event_sync;
     private FunnelKitIntegration $funnelkit_integration;
+    private CartBountySender $cartbounty_sender;
 
     public function __construct() {
         $this->settings = new Settings();
@@ -49,9 +54,22 @@ class Plugin {
 
         $abandoned_dispatcher        = new AbandonedWebhookDispatcher( $logger );
         $this->abandoned_scanner     = new AbandonedOrdersScanner( $this->settings, $abandoned_dispatcher );
-        $this->abandoned_orders_page = new AbandonedOrdersPage( $this->abandoned_scanner );
+        $this->abandoned_orders_page = new AbandonedOrdersPage( $this->abandoned_scanner, $this->settings );
         $this->event_sync            = new EventSync( $this->settings, $api_client );
         $this->funnelkit_integration = new FunnelKitIntegration( $this->settings );
+
+        // CartBounty integration
+        $cartbounty_repository = new CartBountyCartRepository();
+        $cartbounty_resolver   = new CartBountyPlaceholderResolver();
+        $cartbounty_phone      = new CartBountyPhoneNormalizer();
+        $this->cartbounty_sender = new CartBountySender(
+            $this->settings,
+            $cartbounty_repository,
+            $cartbounty_resolver,
+            $cartbounty_phone,
+            $api_client,
+            $logger
+        );
     }
 
     public function init(): void {
@@ -69,6 +87,7 @@ class Plugin {
         $this->abandoned_scanner->register();
         $this->event_sync->register();
         $this->funnelkit_integration->register();
+        $this->cartbounty_sender->register();
     }
 
     public function load_textdomain(): void {

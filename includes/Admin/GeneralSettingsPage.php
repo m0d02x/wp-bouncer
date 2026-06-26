@@ -290,8 +290,27 @@ class GeneralSettingsPage {
         $test_result    = $this->state['test_result'] ?? null;
         $health_result  = $this->state['health_result'] ?? null;
         $discovered_meta_keys = $this->meta_discovery->discover( 50 );
+        $cartbounty_status    = $this->get_cartbounty_status();
 
         include WC_BOUNCER_WHATSAPP_PLUGIN_DIR . 'views/general-settings-page.php';
+    }
+
+    private function get_cartbounty_status(): array {
+        global $wpdb;
+
+        $table  = $wpdb->prefix . 'cartbounty';
+        $exists = $wpdb->get_var(
+            $wpdb->prepare(
+                'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
+                $table
+            )
+        );
+
+        return [
+            'available'     => (int) $exists > 0,
+            'table'         => $table,
+            'plugin_active' => class_exists( 'CartBounty', false ) || defined( 'CARTBOUNTY_VERSION' ),
+        ];
     }
 
     private function handle_post(): void {
@@ -330,6 +349,7 @@ class GeneralSettingsPage {
 
         $current = $this->settings->get_all();
         $current['funnelkit_enabled'] = ! empty( $_POST['funnelkit_enabled'] );
+        $current['cartbounty_enabled'] = ! empty( $_POST['cartbounty_enabled'] );
 
         $this->settings->update( $current );
 
@@ -414,6 +434,39 @@ class GeneralSettingsPage {
             }
             $current['status_templates'] = $status_templates;
         }
+
+        // CartBounty step templates (bouncer instance type)
+        $cartbounty_status_templates = [];
+        if ( ! empty( $_POST['cartbounty_status_templates'] ) && is_array( $_POST['cartbounty_status_templates'] ) ) {
+            foreach ( $_POST['cartbounty_status_templates'] as $step => $template ) {
+                $step_key = absint( $step );
+                if ( $step_key >= 1 && $step_key <= 3 ) {
+                    $cartbounty_status_templates[ $step_key ] = wp_kses_post( wp_unslash( $template ) );
+                }
+            }
+        }
+        $current['cartbounty_status_templates'] = $cartbounty_status_templates;
+
+        // CartBounty cloud config (cloud-api instance type)
+        $cartbounty_cloud_config = $current['cartbounty_cloud_config'] ?? [];
+        if ( ! empty( $_POST['cartbounty_cloud_config']['step_template_map'] ) && is_array( $_POST['cartbounty_cloud_config']['step_template_map'] ) ) {
+            $step_map = [];
+            foreach ( $_POST['cartbounty_cloud_config']['step_template_map'] as $step => $tpl ) {
+                $step_key = absint( $step );
+                if ( $step_key >= 1 && $step_key <= 3 && '' !== trim( $tpl ) ) {
+                    $step_map[ $step_key ] = sanitize_text_field( $tpl );
+                }
+            }
+            $cartbounty_cloud_config['step_template_map'] = $step_map;
+        }
+        if ( ! empty( $_POST['cartbounty_cloud_config']['template_languages'] ) && is_array( $_POST['cartbounty_cloud_config']['template_languages'] ) ) {
+            $langs = [];
+            foreach ( $_POST['cartbounty_cloud_config']['template_languages'] as $tpl => $lang ) {
+                $langs[ sanitize_text_field( $tpl ) ] = sanitize_text_field( $lang );
+            }
+            $cartbounty_cloud_config['template_languages'] = $langs;
+        }
+        $current['cartbounty_cloud_config'] = $cartbounty_cloud_config;
 
         $this->settings->update( $current );
 

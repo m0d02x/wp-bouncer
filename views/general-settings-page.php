@@ -264,6 +264,51 @@ $has_instance = ! empty( $settings['instance_id'] );
                 </div>
             </div>
 
+            <div class="bouncer-card">
+                <div class="bouncer-card-header">
+                    <h3 class="bouncer-card-title">
+                        <span class="dashicons dashicons-cart"></span>
+                        <?php esc_html_e( 'CartBounty Abandoned Carts', 'wc-bouncer-whatsapp' ); ?>
+                    </h3>
+                </div>
+                <div class="bouncer-card-body">
+                    <label class="bouncer-toggle-row" for="cartbounty_enabled" style="display:flex; gap:12px; align-items:flex-start;">
+                        <input
+                            type="checkbox"
+                            name="cartbounty_enabled"
+                            id="cartbounty_enabled"
+                            value="1"
+                            <?php checked( ! empty( $settings['cartbounty_enabled'] ) ); ?>
+                        />
+                        <span>
+                            <strong><?php esc_html_e( 'Enable CartBounty integration', 'wc-bouncer-whatsapp' ); ?></strong><br />
+                            <span class="bouncer-form-description">
+                                <?php esc_html_e( "When enabled, Bouncer sends WhatsApp messages to customers with abandoned carts, mirroring CartBounty's email automation steps.", 'wc-bouncer-whatsapp' ); ?>
+                            </span>
+                        </span>
+                    </label>
+
+                    <div class="bouncer-form-description" style="margin-top:12px;">
+                        <strong><?php esc_html_e( 'Status:', 'wc-bouncer-whatsapp' ); ?></strong>
+                        <?php if ( ! empty( $cartbounty_status['available'] ) ) : ?>
+                            <span class="bouncer-status-badge sent"><?php esc_html_e( 'Available', 'wc-bouncer-whatsapp' ); ?></span>
+                        <?php else : ?>
+                            <span class="bouncer-status-badge failed"><?php esc_html_e( 'Not detected', 'wc-bouncer-whatsapp' ); ?></span>
+                        <?php endif; ?>
+                        <code><?php echo esc_html( $cartbounty_status['table'] ?? '' ); ?></code>
+                    </div>
+
+                    <?php if ( empty( $cartbounty_status['available'] ) ) : ?>
+                        <div class="bouncer-alert bouncer-alert-warning" style="margin-top:16px;">
+                            <span class="dashicons dashicons-warning"></span>
+                            <div class="bouncer-alert-content">
+                                <?php esc_html_e( 'CartBounty plugin was not detected. Install and activate CartBounty to use this integration.', 'wc-bouncer-whatsapp' ); ?>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
             <div class="bouncer-form-actions">
                 <button type="submit" class="bouncer-btn bouncer-btn-primary">
                     <span class="dashicons dashicons-saved"></span>
@@ -284,6 +329,10 @@ $has_instance = ! empty( $settings['instance_id'] );
     $trigger_statuses    = $settings['trigger_statuses'] ?? [];
     $status_templates    = $settings['status_templates'] ?? [];
     $message_template    = $settings['message_template'] ?? '';
+    $cartbounty_steps_config = $settings['cartbounty_steps'] ?? [];
+    $cartbounty_status_templates = $settings['cartbounty_status_templates'] ?? [];
+    $cartbounty_cloud_config = $settings['cartbounty_cloud_config'] ?? [];
+    $cartbounty_cb_step_map = $cartbounty_cloud_config['step_template_map'] ?? [];
     ?>
     <div id="automation" class="bouncer-tab-content <?php echo 'automation' === $active_tab ? 'active' : ''; ?>">
         <form method="post" id="automation_form">
@@ -399,6 +448,72 @@ $has_instance = ! empty( $settings['instance_id'] );
                     <div id="template_languages_container"></div>
                 </div>
             </div>
+
+            <?php if ( ! empty( $settings['cartbounty_enabled'] ) ) : ?>
+            <div class="bouncer-card">
+                <div class="bouncer-card-header">
+                    <h3 class="bouncer-card-title">
+                        <span class="dashicons dashicons-randomize"></span>
+                        <?php esc_html_e( 'CartBounty Steps', 'wc-bouncer-whatsapp' ); ?>
+                    </h3>
+                </div>
+                <div class="bouncer-card-body">
+                    <p class="bouncer-form-description" style="margin: 0 0 16px 0;">
+                        <?php esc_html_e( "Map CartBounty email automation steps to WhatsApp messages. Each step fires alongside CartBounty's email reminder at the same interval.", 'wc-bouncer-whatsapp' ); ?>
+                    </p>
+
+                    <?php if ( 'cloud-api' === $instance_type ) : ?>
+                        <div class="bouncer-status-triggers">
+                            <?php for ( $cartbounty_step = 1; $cartbounty_step <= 3; $cartbounty_step++ ) :
+                                $cartbounty_mapped_template = $cartbounty_cb_step_map[ $cartbounty_step ] ?? '';
+                                $cartbounty_tpl_lang        = $cartbounty_cloud_config['template_languages'][ $cartbounty_mapped_template ] ?? 'en';
+                                ?>
+                                <div class="bouncer-status-trigger-item <?php echo ! empty( $cartbounty_mapped_template ) ? 'is-enabled' : ''; ?>">
+                                    <div class="bouncer-status-trigger-header">
+                                        <label class="bouncer-status-trigger-label" for="cartbounty_step_template_<?php echo esc_attr( $cartbounty_step ); ?>">
+                                            <?php
+                                            printf(
+                                                /* translators: %d: CartBounty automation step number */
+                                                esc_html__( 'Step %d', 'wc-bouncer-whatsapp' ),
+                                                (int) $cartbounty_step
+                                            );
+                                            ?>
+                                        </label>
+                                        <select id="cartbounty_step_template_<?php echo esc_attr( $cartbounty_step ); ?>" name="cartbounty_cloud_config[step_template_map][<?php echo esc_attr( $cartbounty_step ); ?>]" class="bouncer-form-select status-template-select" data-status="cartbounty-step-<?php echo esc_attr( $cartbounty_step ); ?>">
+                                            <option value="" data-language=""><?php esc_html_e( '— No template (disabled) —', 'wc-bouncer-whatsapp' ); ?></option>
+                                            <?php if ( ! empty( $cartbounty_mapped_template ) ) : ?>
+                                                <option value="<?php echo esc_attr( $cartbounty_mapped_template ); ?>" data-language="<?php echo esc_attr( $cartbounty_tpl_lang ); ?>" selected><?php echo esc_html( $cartbounty_mapped_template ); ?></option>
+                                            <?php endif; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            <?php endfor; ?>
+                        </div>
+                    <?php else : ?>
+                        <?php for ( $cartbounty_step = 1; $cartbounty_step <= 3; $cartbounty_step++ ) : ?>
+                            <div class="bouncer-form-group" style="margin-bottom:16px;">
+                                <label class="bouncer-form-label" for="cartbounty_status_template_<?php echo esc_attr( $cartbounty_step ); ?>">
+                                    <?php
+                                    if ( 1 === $cartbounty_step ) {
+                                        esc_html_e( 'Step 1 (First reminder)', 'wc-bouncer-whatsapp' );
+                                    } elseif ( 2 === $cartbounty_step ) {
+                                        esc_html_e( 'Step 2 (Second reminder)', 'wc-bouncer-whatsapp' );
+                                    } else {
+                                        esc_html_e( 'Step 3 (Third reminder)', 'wc-bouncer-whatsapp' );
+                                    }
+                                    ?>
+                                </label>
+                                <textarea id="cartbounty_status_template_<?php echo esc_attr( $cartbounty_step ); ?>" name="cartbounty_status_templates[<?php echo esc_attr( $cartbounty_step ); ?>]" class="bouncer-form-textarea" rows="3" placeholder="<?php esc_attr_e( 'Hi {first_name}, you left {cart_items} in your cart. Your total is {cart_total}.', 'wc-bouncer-whatsapp' ); ?>"><?php echo esc_textarea( $cartbounty_status_templates[ $cartbounty_step ] ?? '' ); ?></textarea>
+                                <p class="bouncer-form-description">
+                                    <?php esc_html_e( 'Cart placeholders:', 'wc-bouncer-whatsapp' ); ?>
+                                    <code>{first_name}</code> <code>{cart_total}</code> <code>{cart_items}</code> <code>{email}</code> <code>{phone}</code> <code>{cart_date}</code>
+                                </p>
+                            </div>
+                        <?php endfor; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <div class="bouncer-form-actions">
                 <button type="submit" class="bouncer-btn bouncer-btn-primary">

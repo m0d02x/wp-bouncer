@@ -3,15 +3,18 @@
 namespace Bouncer\WooCommerce\WhatsApp\Admin;
 
 use Bouncer\WooCommerce\WhatsApp\Service\AbandonedOrdersScanner;
+use Bouncer\WooCommerce\WhatsApp\Settings\Settings;
 
 class AbandonedOrdersPage {
     public const MENU_SLUG = 'wc-bouncer-abandoned-orders';
 
     private AbandonedOrdersScanner $scanner;
+    private Settings $settings;
     private array $state = [];
 
-    public function __construct( AbandonedOrdersScanner $scanner ) {
+    public function __construct( AbandonedOrdersScanner $scanner, Settings $settings ) {
         $this->scanner = $scanner;
+        $this->settings = $settings;
     }
 
     public function register(): void {
@@ -60,6 +63,18 @@ class AbandonedOrdersPage {
         $test_result        = $this->state['test_result'] ?? null;
         $pipeline = $this->scanner->get_pipeline( 25 );
 
+        $cartbounty_settings = [
+            'enabled' => (bool) $this->settings->get( 'cartbounty_enabled', false ),
+            'steps'   => (array) $this->settings->get( 'cartbounty_steps', [] ),
+        ];
+        global $wpdb;
+        $cartbounty_table_exists = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = %s',
+                $wpdb->prefix . 'cartbounty'
+            )
+        ) > 0;
+
         $active_tab = $this->state['active_tab']
             ?? ( isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : 'activity' );
         $allowed_tabs = [ 'activity', 'settings', 'sweep', 'test' ];
@@ -107,6 +122,15 @@ class AbandonedOrdersPage {
         ];
 
         $this->scanner->update_config( $values );
+
+        // Save CartBounty polling settings to the main Bouncer settings option.
+        $bouncer_current = $this->settings->get_all();
+        $bouncer_current['cartbounty_enabled'] = ! empty( $_POST['cartbounty_polling_enabled'] );
+        $bouncer_current['cartbounty_steps'] = array_filter(
+            array_map( 'absint', (array) ( $_POST['cartbounty_steps'] ?? [] ) ),
+            static fn( $step ) => $step >= 1 && $step <= 3
+        );
+        $this->settings->update( $bouncer_current );
 
         // PRG to prevent re-submit on refresh.
         $redirect = add_query_arg(

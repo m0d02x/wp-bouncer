@@ -50,6 +50,14 @@ class Settings {
                 'template_variables'  => [],
                 'template_languages'  => [],
             ],
+            'cartbounty_enabled'          => false,
+            'cartbounty_steps'            => [],
+            'cartbounty_status_templates' => [],
+            'cartbounty_cloud_config'     => [
+                'step_template_map'  => [],
+                'template_variables' => [],
+                'template_languages' => [],
+            ],
         ];
     }
 
@@ -142,6 +150,85 @@ class Settings {
         }
 
         $data['cloud_template_config'] = $cloud_config;
+
+        // cartbounty_enabled
+        $data['cartbounty_enabled'] = ! empty( $data['cartbounty_enabled'] );
+
+        // cartbounty_steps — array of integers in [1, 2, 3], unique
+        $steps = $values['cartbounty_steps'] ?? [];
+        $steps = is_array( $steps ) ? array_map( 'absint', $steps ) : [];
+        $steps = array_filter( $steps, function ( $step ) {
+            return in_array( $step, [1, 2, 3], true );
+        } );
+        $data['cartbounty_steps'] = array_values( array_unique( $steps ) );
+
+        // cartbounty_status_templates — free-form templates keyed by step number (bouncer instance type)
+        $cb_status_templates = [];
+        if ( isset( $values['cartbounty_status_templates'] ) && is_array( $values['cartbounty_status_templates'] ) ) {
+            foreach ( $values['cartbounty_status_templates'] as $step => $template ) {
+                $step_key = absint( $step );
+                if ( $step_key < 1 ) {
+                    continue;
+                }
+
+                $cb_status_templates[ $step_key ] = wp_kses_post( $template );
+            }
+        }
+        $data['cartbounty_status_templates'] = $cb_status_templates;
+
+        // cartbounty_cloud_config — same structure as cloud_template_config but keyed by step number
+        $cb_cloud_config = [
+            'step_template_map'  => [],
+            'template_variables' => [],
+            'template_languages' => [],
+        ];
+
+        if ( isset( $values['cartbounty_cloud_config'] ) && is_array( $values['cartbounty_cloud_config'] ) ) {
+            // Step to template mapping
+            if ( isset( $values['cartbounty_cloud_config']['step_template_map'] ) && is_array( $values['cartbounty_cloud_config']['step_template_map'] ) ) {
+                foreach ( $values['cartbounty_cloud_config']['step_template_map'] as $step => $template_name ) {
+                    $step_key = absint( $step );
+                    if ( $step_key < 1 || '' === trim( $template_name ) ) {
+                        continue;
+                    }
+                    $cb_cloud_config['step_template_map'][ $step_key ] = sanitize_text_field( $template_name );
+                }
+            }
+
+            // Template variables mapping
+            if ( isset( $values['cartbounty_cloud_config']['template_variables'] ) && is_array( $values['cartbounty_cloud_config']['template_variables'] ) ) {
+                foreach ( $values['cartbounty_cloud_config']['template_variables'] as $template_name => $variables ) {
+                    $safe_name = sanitize_text_field( $template_name );
+                    if ( '' === $safe_name || ! is_array( $variables ) ) {
+                        continue;
+                    }
+
+                    $cb_cloud_config['template_variables'][ $safe_name ] = [];
+                    foreach ( $variables as $index => $placeholder ) {
+                        $idx = absint( $index );
+                        if ( $idx > 0 && '' !== trim( $placeholder ) ) {
+                            $cb_cloud_config['template_variables'][ $safe_name ][ $idx ] = sanitize_text_field( $placeholder );
+                        }
+                    }
+                }
+            }
+
+            // Template languages mapping
+            if ( isset( $values['cartbounty_cloud_config']['template_languages'] ) && is_array( $values['cartbounty_cloud_config']['template_languages'] ) ) {
+                foreach ( $values['cartbounty_cloud_config']['template_languages'] as $template_name => $language ) {
+                    $safe_name     = sanitize_text_field( $template_name );
+                    $safe_language = sanitize_text_field( $language );
+
+                    if ( '' === $safe_name || '' === $safe_language ) {
+                        continue;
+                    }
+
+                    $cb_cloud_config['template_languages'][ $safe_name ] = $safe_language;
+                }
+            }
+        }
+
+        $data['cartbounty_cloud_config'] = $cb_cloud_config;
 
         return $data;
     }
