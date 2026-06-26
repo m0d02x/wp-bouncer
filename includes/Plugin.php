@@ -7,6 +7,7 @@ use Bouncer\WooCommerce\WhatsApp\Admin\GeneralSettingsPage;
 use Bouncer\WooCommerce\WhatsApp\Admin\LogsPage;
 use Bouncer\WooCommerce\WhatsApp\Admin\WebhookConfigPage;
 use Bouncer\WooCommerce\WhatsApp\Integrations\FunnelKit\FunnelKitIntegration;
+use Bouncer\WooCommerce\WhatsApp\Infrastructure\GithubUpdater;
 use Bouncer\WooCommerce\WhatsApp\Repository\LogRepository;
 use Bouncer\WooCommerce\WhatsApp\Service\AbandonedOrdersScanner;
 use Bouncer\WooCommerce\WhatsApp\Service\AbandonedWebhookDispatcher;
@@ -54,11 +55,10 @@ class Plugin {
 
         $abandoned_dispatcher        = new AbandonedWebhookDispatcher( $logger );
         $this->abandoned_scanner     = new AbandonedOrdersScanner( $this->settings, $abandoned_dispatcher );
-        $this->abandoned_orders_page = new AbandonedOrdersPage( $this->abandoned_scanner, $this->settings, $this->cartbounty_sender );
         $this->event_sync            = new EventSync( $this->settings, $api_client );
         $this->funnelkit_integration = new FunnelKitIntegration( $this->settings );
 
-        // CartBounty integration
+        // CartBounty integration (must be instantiated before AbandonedOrdersPage)
         $cartbounty_repository = new CartBountyCartRepository();
         $cartbounty_resolver   = new CartBountyPlaceholderResolver();
         $cartbounty_phone      = new CartBountyPhoneNormalizer();
@@ -70,6 +70,8 @@ class Plugin {
             $api_client,
             $logger
         );
+
+        $this->abandoned_orders_page = new AbandonedOrdersPage( $this->abandoned_scanner, $this->settings, $this->cartbounty_sender );
     }
 
     public function init(): void {
@@ -88,6 +90,11 @@ class Plugin {
         $this->event_sync->register();
         $this->funnelkit_integration->register();
         $this->cartbounty_sender->register();
+
+        // GitHub self-updater (admin only, checks for new releases).
+        if ( is_admin() ) {
+            ( new GithubUpdater( 'm0d02x/wp-bouncer', WC_BOUNCER_WHATSAPP_PLUGIN_FILE, WC_BOUNCER_WHATSAPP_VERSION ) )->register();
+        }
     }
 
     public function load_textdomain(): void {
