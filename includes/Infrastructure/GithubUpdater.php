@@ -41,7 +41,7 @@ class GithubUpdater {
 	public function register(): void {
 		add_filter( 'pre_set_site_transient_update_plugins', [ $this, 'check_for_update' ] );
 		add_filter( 'plugins_api', [ $this, 'plugin_info' ], 20, 3 );
-		add_filter( 'upgrader_post_install', [ $this, 'rename_install_folder' ], 10, 3 );
+		add_filter( 'upgrader_source_selection', [ $this, 'rename_source_folder' ], 10, 4 );
 	}
 
 	/**
@@ -60,6 +60,55 @@ class GithubUpdater {
 	 */
 	public function get_release_info(): ?array {
 		return $this->get_latest_release();
+	}
+
+	/**
+	 * Rename the unpacked source folder so WordPress installs it over the
+	 * existing plugin folder instead of creating a new copy.
+	 *
+	 * GitHub zipballs extract to `{owner}-{repo}-{commit}/` which differs
+	 * from the installed `wp-bouncer-saas/` folder. This filter fires BEFORE
+	 * WordPress moves files to the plugins directory, so the rename ensures
+	 * the final path matches and the old plugin is cleanly replaced.
+	 *
+	 * @param string   $source        Full path to the extracted folder.
+	 * @param string   $remote_source Parent directory of $source.
+	 * @param object   $upgrader      WP_Upgrader instance.
+	 * @param array    $hook_extra    Extra data; contains 'plugin' key for plugin upgrades.
+	 * @return string
+	 */
+	public function rename_source_folder( string $source, string $remote_source, $upgrader, array $hook_extra ): string {
+		if ( ! isset( $hook_extra['plugin'] ) || $hook_extra['plugin'] !== $this->plugin_slug ) {
+			return $source;
+		}
+
+		global $wp_filesystem;
+
+		if ( ! $wp_filesystem || empty( $source ) ) {
+			return $source;
+		}
+
+		$expected_folder = dirname( $this->plugin_slug );
+		$correct_source  = trailingslashit( $remote_source ) . $expected_folder;
+
+		// Already matches — nothing to do.
+		if ( rtrim( $source, '/' ) === rtrim( $correct_source, '/' ) ) {
+			return $source;
+		}
+
+		// If a temp folder with the correct name already exists from a
+		// previous attempt, clear it before renaming.
+		if ( $wp_filesystem->exists( $correct_source ) ) {
+			$wp_filesystem->delete( $correct_source, true );
+		}
+
+		$moved = $wp_filesystem->move( $source, $correct_source );
+
+		if ( ! $moved ) {
+			return $source;
+		}
+
+		return $correct_source;
 	}
 
 	/**
@@ -146,38 +195,6 @@ class GithubUpdater {
 		$info->banners['low']     = '';
 
 		return $info;
-	}
-
-	/**
-	 * Ensure the unpacked plugin folder matches the registered slug. GitHub
-	 * release ZIPs often extract to a top-level folder that differs from the
-	 * installed one — this prevents the plugin from being moved to a wrong
-	 * path during upgrade.
-	 *
-	 * @param bool  $response
-	 * @param array $hook_extra
-	 * @param array $result
-	 * @return array
-	 */
-	public function rename_install_folder( bool $response, array $hook_extra, array $result ): array {
-		global $wp_filesystem;
-
-		if ( ! isset( $hook_extra['plugin'] ) || $hook_extra['plugin'] !== $this->plugin_slug ) {
-			return $result;
-		}
-
-		if ( empty( $result['destination'] ) || ! $wp_filesystem ) {
-			return $result;
-		}
-
-		$installed_folder = trailingslashit( $result['local_destination'] ) . dirname( $this->plugin_slug );
-
-		// Move the extracted folder to the expected location.
-		$wp_filesystem->move( $result['destination'], $installed_folder );
-
-		$result['destination'] = $installed_folder;
-
-		return $result;
 	}
 
 	/**
