@@ -1374,6 +1374,7 @@ $has_instance = ! empty( $settings['instance_id'] );
     var currentInstanceType = <?php echo wp_json_encode( $settings['instance_type'] ?? '' ); ?>;
     var instancesData = [];
     var templatesData = [];
+    var cachePrefix = 'wc_bouncer_admin_';
 
     // Connection tab elements
     var templatesCard = $('#templates_card');
@@ -1416,6 +1417,79 @@ $has_instance = ! empty( $settings['instance_id'] );
         fetchBtn.prop('disabled', show);
     }
 
+    function cacheKey(type, parts) {
+        return cachePrefix + type + '_' + parts.map(fingerprint).join('_');
+    }
+
+    function fingerprint(value) {
+        var text = String(value || '');
+        var hash = 0;
+
+        for (var i = 0; i < text.length; i++) {
+            hash = ((hash << 5) - hash) + text.charCodeAt(i);
+            hash |= 0;
+        }
+
+        return Math.abs(hash).toString(36);
+    }
+
+    function readCache(key) {
+        try {
+            var cached = window.sessionStorage.getItem(key);
+            return cached ? JSON.parse(cached) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function writeCache(key, value) {
+        try {
+            window.sessionStorage.setItem(key, JSON.stringify(value));
+        } catch (e) {
+            // Ignore storage limits or private-mode failures; AJAX still works.
+        }
+    }
+
+    function populateInstances(instances) {
+        instancesData = instances;
+        instanceSelect.find('option:not(:first)').remove();
+
+        instances.forEach(function(inst) {
+            var label = inst.name || inst.id;
+            if (inst.phoneNumber) {
+                label += ' - ' + inst.phoneNumber;
+            }
+            var option = $('<option></option>')
+                .val(inst.id)
+                .text(label)
+                .data('type', inst.type || 'bouncer');
+
+            if (inst.id === currentInstance) {
+                option.prop('selected', true);
+            }
+
+            instanceSelect.append(option);
+        });
+
+        setTimeout(function() {
+            updateInstanceInfo();
+            // Also update test form on initial load
+            updateTestForm();
+        }, 50);
+
+        if (instances.length === 0) {
+            errorP.text(<?php echo wp_json_encode( __( 'No instances found.', 'wc-bouncer-whatsapp' ) ); ?>).show();
+        }
+    }
+
+    function applyTemplates(templates) {
+        templatesData = templates;
+        renderTemplates(templatesData);
+        populateStatusTemplateSelects(templatesData);
+        populateTestTemplateSelect(templatesData);
+        renderAvailableTemplates();
+    }
+
     function getSelectedInstanceType() {
         var selectedId = instanceSelect.val();
         var instance = instancesData.find(function(i) { return i.id === selectedId; });
@@ -1453,7 +1527,7 @@ $has_instance = ! empty( $settings['instance_id'] );
         }
     }
 
-    function loadTestTemplates() {
+    function loadTestTemplates(forceRefresh) {
         var apiKey = apiKeyInput.val().trim();
         var instanceId = instanceSelect.val();
 
@@ -1465,6 +1539,13 @@ $has_instance = ! empty( $settings['instance_id'] );
         // If we already have templates from connection tab, use those
         if (templatesData.length > 0) {
             populateTestTemplateSelect(templatesData);
+            return;
+        }
+
+        var cacheId = cacheKey('templates', [apiKey, instanceId]);
+        var cachedTemplates = !forceRefresh ? readCache(cacheId) : null;
+        if (cachedTemplates) {
+            applyTemplates(cachedTemplates);
             return;
         }
 
@@ -1485,8 +1566,8 @@ $has_instance = ! empty( $settings['instance_id'] );
                 testTemplateSelect.prop('disabled', false);
 
                 if (response.success && response.data.templates) {
-                    templatesData = response.data.templates;
-                    populateTestTemplateSelect(templatesData);
+                    writeCache(cacheId, response.data.templates);
+                    applyTemplates(response.data.templates);
                 } else {
                     testNoTemplates.show();
                 }
@@ -2034,9 +2115,17 @@ $has_instance = ! empty( $settings['instance_id'] );
         }
     });
 
-    function fetchTemplates(instanceId) {
+    function fetchTemplates(instanceId, forceRefresh) {
         var apiKey = apiKeyInput.val().trim();
         if (!apiKey || !instanceId) return;
+
+        var cacheId = cacheKey('templates', [apiKey, instanceId]);
+        var cachedTemplates = !forceRefresh ? readCache(cacheId) : null;
+        if (cachedTemplates) {
+            templatesError.hide();
+            applyTemplates(cachedTemplates);
+            return;
+        }
 
         templatesLoading.show();
         templatesError.hide();
@@ -2055,11 +2144,8 @@ $has_instance = ! empty( $settings['instance_id'] );
                 templatesLoading.hide();
 
                 if (response.success && response.data.templates) {
-                    templatesData = response.data.templates;
-                    renderTemplates(templatesData);
-                    populateStatusTemplateSelects(templatesData);
-                    populateTestTemplateSelect(templatesData);
-                    renderAvailableTemplates();
+                    writeCache(cacheId, response.data.templates);
+                    applyTemplates(response.data.templates);
                 } else {
                     var msg = response.data && response.data.message ? response.data.message : '<?php echo esc_js( __( 'Failed to fetch templates.', 'wc-bouncer-whatsapp' ) ); ?>';
                     templatesError.find('.bouncer-alert-content').text(msg);
@@ -2111,17 +2197,25 @@ $has_instance = ! empty( $settings['instance_id'] );
     refreshTemplatesBtn.on('click', function() {
         var selectedId = instanceSelect.val();
         if (selectedId) {
-            fetchTemplates(selectedId);
+            fetchTemplates(selectedId, true);
         }
     });
 
     instanceSelect.on('change', updateInstanceInfo);
 
-    fetchBtn.on('click', function() {
+    function fetchInstances(forceRefresh) {
         var apiKey = apiKeyInput.val().trim();
 
         if (!apiKey) {
             errorP.text(<?php echo wp_json_encode( __( 'Enter an API key first.', 'wc-bouncer-whatsapp' ) ); ?>).show();
+            return;
+        }
+
+        var cacheId = cacheKey('instances', [apiKey]);
+        var cachedInstances = !forceRefresh ? readCache(cacheId) : null;
+        if (cachedInstances) {
+            errorP.hide();
+            populateInstances(cachedInstances);
             return;
         }
 
@@ -2140,35 +2234,8 @@ $has_instance = ! empty( $settings['instance_id'] );
                 showLoading(false);
 
                 if (response.success && response.data.instances) {
-                    instancesData = response.data.instances;
-                    instanceSelect.find('option:not(:first)').remove();
-
-                    response.data.instances.forEach(function(inst) {
-                        var label = inst.name || inst.id;
-                        if (inst.phoneNumber) {
-                            label += ' - ' + inst.phoneNumber;
-                        }
-                        var option = $('<option></option>')
-                            .val(inst.id)
-                            .text(label)
-                            .data('type', inst.type || 'bouncer');
-
-                        if (inst.id === currentInstance) {
-                            option.prop('selected', true);
-                        }
-
-                        instanceSelect.append(option);
-                    });
-
-                    setTimeout(function() {
-                        updateInstanceInfo();
-                        // Also update test form on initial load
-                        updateTestForm();
-                    }, 50);
-
-                    if (response.data.instances.length === 0) {
-                        errorP.text(<?php echo wp_json_encode( __( 'No instances found.', 'wc-bouncer-whatsapp' ) ); ?>).show();
-                    }
+                    writeCache(cacheId, response.data.instances);
+                    populateInstances(response.data.instances);
                 } else {
                     var msg = response.data && response.data.message ? response.data.message : <?php echo wp_json_encode( __( 'Failed to fetch instances.', 'wc-bouncer-whatsapp' ) ); ?>;
                     errorP.text(msg).show();
@@ -2179,6 +2246,10 @@ $has_instance = ! empty( $settings['instance_id'] );
                 errorP.text(<?php echo wp_json_encode( __( 'Network error.', 'wc-bouncer-whatsapp' ) ); ?>).show();
             }
         });
+    }
+
+    fetchBtn.on('click', function() {
+        fetchInstances(true);
     });
 
     // Initialize test form based on saved instance type
@@ -2233,7 +2304,7 @@ $has_instance = ! empty( $settings['instance_id'] );
 
     // Auto-fetch if API key exists
     if (apiKeyInput.val().trim()) {
-        fetchBtn.trigger('click');
+        fetchInstances(false);
     } else {
         initTestForm();
     }
