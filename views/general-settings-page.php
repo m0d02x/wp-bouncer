@@ -374,9 +374,13 @@ $has_instance = ! empty( $settings['instance_id'] );
                         <span class="dashicons dashicons-edit"></span>
                         <?php esc_html_e( 'Default Message Template', 'wc-bouncer-whatsapp' ); ?>
                     </h3>
+                    <button type="button" id="preview_default_template_btn" class="bouncer-btn bouncer-btn-secondary bouncer-btn-sm">
+                        <span class="dashicons dashicons-visibility"></span>
+                        <?php esc_html_e( 'Preview', 'wc-bouncer-whatsapp' ); ?>
+                    </button>
                 </div>
                 <div class="bouncer-card-body">
-                    <textarea name="message_template" class="bouncer-form-textarea" rows="5" placeholder="<?php esc_attr_e( 'Hello {first_name}, your order #{order_number} is now {order_status}.', 'wc-bouncer-whatsapp' ); ?>"><?php echo esc_textarea( $message_template ); ?></textarea>
+                    <textarea name="message_template" id="message_template" class="bouncer-form-textarea" rows="5" placeholder="<?php esc_attr_e( 'Hello {first_name}, your order #{order_number} is now {order_status}.', 'wc-bouncer-whatsapp' ); ?>"><?php echo esc_textarea( $message_template ); ?></textarea>
                     <p class="bouncer-form-description"><?php esc_html_e( 'Used when a status has no custom message.', 'wc-bouncer-whatsapp' ); ?></p>
                 </div>
             </div>
@@ -603,6 +607,7 @@ $has_instance = ! empty( $settings['instance_id'] );
                                         </div>
                                     </div>
                                     <div class="bouncer-mapping-content">
+                                        <div class="bouncer-template-component-notes" data-template="<?php echo esc_attr( $tpl_name ); ?>"></div>
                                     <?php
                                     $placeholder_options = [
                                         '{first_name}' => '{first_name}', '{last_name}' => '{last_name}',
@@ -1496,6 +1501,7 @@ $has_instance = ! empty( $settings['instance_id'] );
         populateStatusTemplateSelects(templatesData);
         populateTestTemplateSelect(templatesData);
         renderAvailableTemplates();
+        renderAllTemplateComponentNotes();
     }
 
     function getSelectedInstanceType() {
@@ -1886,6 +1892,7 @@ $has_instance = ! empty( $settings['instance_id'] );
         html += '</div>';
         html += '</div>';
         html += '<div class="bouncer-mapping-content">';
+        html += '<div class="bouncer-template-component-notes" data-template="' + escapeHtml(templateName) + '"></div>';
 
         for (var i = 1; i <= 10; i++) {
             html += '<div class="bouncer-variable-row">';
@@ -1898,6 +1905,88 @@ $has_instance = ! empty( $settings['instance_id'] );
 
         $('#no_mappings_placeholder').hide();
         $('#template_variable_mappings').append(html);
+        renderTemplateComponentNotes(templateName);
+    }
+
+    function renderAllTemplateComponentNotes() {
+        $('.bouncer-template-component-notes').each(function() {
+            renderTemplateComponentNotes($(this).data('template'));
+        });
+    }
+
+    function renderTemplateComponentNotes(templateName) {
+        var $target = $('.bouncer-template-component-notes').filter(function() {
+            return $(this).data('template') === templateName;
+        });
+        if (!$target.length) return;
+
+        var template = templatesData.find(function(t) { return t.name === templateName; });
+        var notes = template ? getTemplateComponentNotes(template) : [];
+
+        if (!notes.length) {
+            $target.empty().hide();
+            return;
+        }
+
+        var html = '<div class="bouncer-alert bouncer-alert-info" style="margin: 0 0 12px 0;">';
+        html += '<span class="dashicons dashicons-info"></span>';
+        html += '<div class="bouncer-alert-content">';
+        html += '<strong><?php echo esc_js( __( 'Template components detected', 'wc-bouncer-whatsapp' ) ); ?></strong>';
+        html += '<ul style="margin: 6px 0 0 18px;">';
+        notes.forEach(function(note) {
+            html += '<li>' + escapeHtml(note) + '</li>';
+        });
+        html += '</ul></div></div>';
+
+        $target.html(html).show();
+    }
+
+    function getTemplateComponentNotes(template) {
+        var notes = [];
+        var components = Array.isArray(template.components) ? template.components : [];
+
+        components.forEach(function(component) {
+            var type = String(component.type || '').toUpperCase();
+            var format = String(component.format || '').toUpperCase();
+
+            if (type === 'BODY') return;
+
+            if (type === 'HEADER') {
+                if (format === 'TEXT' && hasTemplateVariables(component.text || '')) {
+                    notes.push('<?php echo esc_js( __( 'Header text has variables. Body variable mapping is available; header-specific send mapping needs the Bouncer component payload contract.', 'wc-bouncer-whatsapp' ) ); ?>');
+                    return;
+                }
+
+                if (['IMAGE', 'VIDEO', 'DOCUMENT'].indexOf(format) !== -1) {
+                    notes.push(format.charAt(0) + format.slice(1).toLowerCase() + ': <?php echo esc_js( __( 'media header detected. A media URL/file mapping is required before this can be sent from the plugin.', 'wc-bouncer-whatsapp' ) ); ?>');
+                    return;
+                }
+
+                notes.push('<?php echo esc_js( __( 'Header component detected. Sending support depends on the Bouncer component payload contract.', 'wc-bouncer-whatsapp' ) ); ?>');
+                return;
+            }
+
+            if (type === 'BUTTONS' && Array.isArray(component.buttons)) {
+                component.buttons.forEach(function(button, index) {
+                    var buttonType = String(button.type || '').toUpperCase();
+                    var text = button.text || ('#' + (index + 1));
+
+                    if (buttonType === 'URL' && hasTemplateVariables(button.url || '')) {
+                        notes.push('<?php echo esc_js( __( 'URL button', 'wc-bouncer-whatsapp' ) ); ?> "' + text + '": <?php echo esc_js( __( 'contains a variable. Button variable mapping needs the Bouncer component payload contract.', 'wc-bouncer-whatsapp' ) ); ?>');
+                    } else if (buttonType === 'QUICK_REPLY' || buttonType === 'PHONE_NUMBER') {
+                        notes.push(buttonType.replace('_', ' ').toLowerCase() + ' "' + text + '": <?php echo esc_js( __( 'no mapping needed.', 'wc-bouncer-whatsapp' ) ); ?>');
+                    } else if (buttonType) {
+                        notes.push(buttonType.toLowerCase() + ' "' + text + '": <?php echo esc_js( __( 'component detected.', 'wc-bouncer-whatsapp' ) ); ?>');
+                    }
+                });
+            }
+        });
+
+        return notes;
+    }
+
+    function hasTemplateVariables(text) {
+        return /\{\{\d+\}\}/.test(String(text || ''));
     }
 
     // Render available templates list
@@ -1963,6 +2052,46 @@ $has_instance = ! empty( $settings['instance_id'] );
         }
         renderAvailableTemplates();
     });
+
+    $('#preview_default_template_btn').on('click', function() {
+        var template = $('#message_template').val() || $('#message_template').attr('placeholder') || '';
+
+        showPreviewModal(
+            '<?php echo esc_js( __( 'Default Message Template', 'wc-bouncer-whatsapp' ) ); ?>',
+            renderSamplePlaceholders(template),
+            {}
+        );
+    });
+
+    function renderSamplePlaceholders(template) {
+        var samples = {
+            '{first_name}': 'Aina',
+            '{last_name}': 'Rahman',
+            '{name}': 'Aina Rahman',
+            '{email}': 'aina@example.com',
+            '{phone}': '+60123456789',
+            '{order_id}': '1024',
+            '{order_number}': '1024',
+            '{status}': 'processing',
+            '{order_status}': 'Processing',
+            '{order_date}': '28 Jun 2026',
+            '{amount}': 'RM 128.00',
+            '{order_total}': 'RM 128.00',
+            '{currency}': 'MYR',
+            '{order_items}': '2x Signature Coffee',
+            '{payment_method}': 'Credit card',
+            '{shipping_method}': 'Local delivery',
+            '{billing_address}': '12 Jalan Ampang, Kuala Lumpur',
+            '{shipping_address}': '12 Jalan Ampang, Kuala Lumpur'
+        };
+
+        var rendered = template;
+        Object.keys(samples).forEach(function(placeholder) {
+            rendered = rendered.split(placeholder).join(samples[placeholder]);
+        });
+
+        return rendered.replace(/\{meta:([^}]+)\}/g, 'Sample meta');
+    }
 
     // Preview button - show template preview with mapped values
     $(document).on('click', '.preview-mapping-btn', function(e) {
@@ -2048,7 +2177,7 @@ $has_instance = ! empty( $settings['instance_id'] );
     });
 
     function showPreviewModal(templateName, content, mappings) {
-        var previewContent = content;
+        var previewContent = escapeHtml(content);
 
         // Replace {{1}}, {{2}}, etc. with mapped placeholders
         for (var i = 1; i <= 10; i++) {

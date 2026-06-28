@@ -154,6 +154,7 @@ class GeneralSettingsPage {
                         'category' => $template['category'] ?? '',
                         'language' => $template['language'] ?? '',
                         'content'  => $body_text,
+                        'components' => is_array( $template['components'] ?? null ) ? $template['components'] : [],
                     ];
                 }
             }
@@ -208,6 +209,7 @@ class GeneralSettingsPage {
                 'id'      => $template_data['id'] ?? $template_data['name'] ?? $template_id,
                 'name'    => $template_data['name'] ?? $template_id,
                 'content' => $body_text,
+                'components' => is_array( $template_data['components'] ?? null ) ? $template_data['components'] : [],
             ],
         ] );
     }
