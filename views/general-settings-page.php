@@ -977,6 +977,14 @@ $has_instance = ! empty( $settings['instance_id'] );
                                         <?php esc_html_e( 'View release notes', 'wc-bouncer-whatsapp' ); ?> →
                                     </a>
                                     <br />
+                                    <?php if ( ! empty( $update_check['upgrade_url'] ) ) : ?>
+                                        <p style="margin: 12px 0 8px 0;">
+                                            <a href="<?php echo esc_url( $update_check['upgrade_url'] ); ?>" class="bouncer-btn bouncer-btn-primary">
+                                                <span class="dashicons dashicons-update"></span>
+                                                <?php esc_html_e( 'Update Plugin Now', 'wc-bouncer-whatsapp' ); ?>
+                                            </a>
+                                        </p>
+                                    <?php endif; ?>
                                     <a href="<?php echo esc_url( admin_url( 'plugins.php' ) ); ?>">
                                         <?php esc_html_e( 'Go to Plugins to update →', 'wc-bouncer-whatsapp' ); ?>
                                     </a>

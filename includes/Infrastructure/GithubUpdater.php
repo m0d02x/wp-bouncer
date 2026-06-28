@@ -63,6 +63,21 @@ class GithubUpdater {
 	}
 
 	/**
+	 * Build the native WordPress plugin upgrade URL for this plugin.
+	 */
+	public function get_upgrade_url(): string {
+		$url = add_query_arg(
+			[
+				'action' => 'upgrade-plugin',
+				'plugin' => $this->plugin_slug,
+			],
+			self_admin_url( 'update.php' )
+		);
+
+		return wp_nonce_url( $url, 'upgrade-plugin_' . $this->plugin_slug );
+	}
+
+	/**
 	 * Rename the unpacked source folder so WordPress installs it over the
 	 * existing plugin folder instead of creating a new copy.
 	 *

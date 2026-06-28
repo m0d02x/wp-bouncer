@@ -399,6 +399,7 @@ class GeneralSettingsPage {
                     'update_available'=> $update_available,
                     'info_url'        => $release['info_url'],
                     'published_at'    => $release['published_at'],
+                    'upgrade_url'     => $update_available && current_user_can( 'update_plugins' ) ? $this->updater->get_upgrade_url() : '',
                 ];
             } else {
                 $this->state['update_check'] = [
